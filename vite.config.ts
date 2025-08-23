@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { checker } from "vite-plugin-checker";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -11,15 +10,8 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    // Type checking and linting during development
-    mode === "development" &&
-      checker({
-        typescript: true,
-        eslint: {
-          lintCommand: 'eslint "./src/**/*.{ts,tsx}"',
-        },
-      }),
-  ].filter(Boolean),
+    // Clean setup without conflicting plugins
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

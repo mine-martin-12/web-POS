@@ -1,24 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { Search, Plus, Edit, Trash2, Download } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { Search, Plus, Edit, Trash2, Download } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 const saleSchema = z.object({
-  product_id: z.string().min(1, 'Product is required'),
-  quantity: z.number().min(1, 'Quantity must be at least 1'),
-  selling_price: z.number().min(0, 'Selling price must be non-negative'),
+  product_id: z.string().min(1, "Product is required"),
+  quantity: z.number().min(1, "Quantity must be at least 1"),
+  selling_price: z.number().min(0, "Selling price must be non-negative"),
   description: z.string().optional(),
 });
 
@@ -53,17 +78,17 @@ const Sales: React.FC = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
 
   const form = useForm<SaleFormData>({
     resolver: zodResolver(saleSchema),
     defaultValues: {
-      product_id: '',
+      product_id: "",
       quantity: 1,
       selling_price: 0,
-      description: '',
+      description: "",
     },
   });
 
@@ -71,23 +96,25 @@ const Sales: React.FC = () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('sales')
-        .select(`
+        .from("sales")
+        .select(
+          `
           *,
           products (
             name,
             buying_price
           )
-        `)
-        .order('created_at', { ascending: false });
+        `
+        )
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setSales(data || []);
     } catch (error: any) {
       toast({
-        title: 'Error',
-        description: 'Failed to load sales',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load sales",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -97,17 +124,17 @@ const Sales: React.FC = () => {
   const fetchProducts = async () => {
     try {
       const { data, error } = await supabase
-        .from('products')
-        .select('id, name, buying_price, stock_quantity')
-        .order('name', { ascending: true });
+        .from("products")
+        .select("id, name, buying_price, stock_quantity")
+        .order("name", { ascending: true });
 
       if (error) throw error;
       setProducts(data || []);
     } catch (error: any) {
       toast({
-        title: 'Error',
-        description: 'Failed to load products',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load products",
+        variant: "destructive",
       });
     }
   };
@@ -120,13 +147,15 @@ const Sales: React.FC = () => {
   const onSubmit = async (data: SaleFormData) => {
     try {
       // Check stock availability before processing sale
-      const selectedProduct = products.find(p => p.id === data.product_id);
+      const selectedProduct = products.find((p) => p.id === data.product_id);
       if (!selectedProduct) {
-        throw new Error('Product not found');
+        throw new Error("Product not found");
       }
 
       if (data.quantity > selectedProduct.stock_quantity) {
-        throw new Error(`Insufficient stock. Available: ${selectedProduct.stock_quantity}, Requested: ${data.quantity}`);
+        throw new Error(
+          `Insufficient stock. Available: ${selectedProduct.stock_quantity}, Requested: ${data.quantity}`
+        );
       }
 
       const saleData = {
@@ -141,19 +170,17 @@ const Sales: React.FC = () => {
 
       if (editingSale) {
         const { error } = await supabase
-          .from('sales')
+          .from("sales")
           .update(saleData)
-          .eq('id', editingSale.id);
+          .eq("id", editingSale.id);
 
         if (error) throw error;
-        toast({ title: 'Success', description: 'Sale updated successfully' });
+        toast({ title: "Success", description: "Sale updated successfully" });
       } else {
-        const { error } = await supabase
-          .from('sales')
-          .insert(saleData);
+        const { error } = await supabase.from("sales").insert(saleData);
 
         if (error) throw error;
-        toast({ title: 'Success', description: 'Sale recorded successfully' });
+        toast({ title: "Success", description: "Sale recorded successfully" });
       }
 
       setIsDialogOpen(false);
@@ -163,9 +190,9 @@ const Sales: React.FC = () => {
       fetchProducts(); // Refresh products to show updated stock
     } catch (error: any) {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to save sale',
-        variant: 'destructive',
+        title: "Error",
+        description: error.message || "Failed to save sale",
+        variant: "destructive",
       });
     }
   };
@@ -176,64 +203,69 @@ const Sales: React.FC = () => {
       product_id: sale.product_id,
       quantity: sale.quantity,
       selling_price: sale.selling_price,
-      description: sale.description || '',
+      description: sale.description || "",
     });
     setIsDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== "admin") {
       toast({
-        title: 'Access Denied',
-        description: 'Only admins can delete sales',
-        variant: 'destructive',
+        title: "Access Denied",
+        description: "Only admins can delete sales",
+        variant: "destructive",
       });
       return;
     }
 
     try {
-      const { error } = await supabase
-        .from('sales')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from("sales").delete().eq("id", id);
 
       if (error) throw error;
-      toast({ title: 'Success', description: 'Sale deleted successfully' });
+      toast({ title: "Success", description: "Sale deleted successfully" });
       fetchSales();
     } catch (error: any) {
       toast({
-        title: 'Error',
-        description: 'Failed to delete sale',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to delete sale",
+        variant: "destructive",
       });
     }
   };
 
   const exportToCSV = () => {
-    const headers = ['Product', 'Quantity', 'Selling Price', 'Total Price', 'Profit', 'Sale Date', 'Description'];
+    const headers = [
+      "Product",
+      "Quantity",
+      "Selling Price",
+      "Total Price",
+      "Profit",
+      "Sale Date",
+      "Description",
+    ];
     const csvContent = [
-      headers.join(','),
-      ...filteredSales.map(sale => {
-        const profit = sale.products 
+      headers.join(","),
+      ...filteredSales.map((sale) => {
+        const profit = sale.products
           ? (sale.selling_price - sale.products.buying_price) * sale.quantity
           : 0;
         return [
-          sale.products?.name || 'Unknown Product',
+          sale.products?.name || "Unknown Product",
           sale.quantity,
           sale.selling_price,
           sale.total_price || sale.quantity * sale.selling_price,
           profit.toFixed(2),
           new Date(sale.sale_date).toLocaleDateString(),
-          sale.description || '',
-        ].join(',');
-      })
-    ].join('\n');
+          sale.description || "",
+        ].join(",");
+      }),
+    ].join("\n");
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'sales.csv';
+    a.download = "sales.csv";
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -243,15 +275,27 @@ const Sales: React.FC = () => {
     return (sale.selling_price - sale.products.buying_price) * sale.quantity;
   };
 
-  const filteredSales = sales.filter(sale =>
-    sale.products?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sale.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredSales = sales.filter(
+    (sale) =>
+      sale.products?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sale.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const openAddDialog = () => {
     setEditingSale(null);
-    form.reset();
+    form.reset({
+      quantity: 0,
+      selling_price: 0,
+      description: "",
+    });
     setIsDialogOpen(true);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "KES",
+    }).format(amount);
   };
 
   return (
@@ -259,10 +303,16 @@ const Sales: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Sales</h1>
-          <p className="text-muted-foreground">Track and manage your sales transactions</p>
+          <p className="text-muted-foreground">
+            Track and manage your sales transactions
+          </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button onClick={exportToCSV} variant="outline" className="flex items-center gap-2">
+          <Button
+            onClick={exportToCSV}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
             <Download className="h-4 w-4" />
             Export CSV
           </Button>
@@ -310,16 +360,30 @@ const Sales: React.FC = () => {
                   {filteredSales.map((sale) => (
                     <TableRow key={sale.id}>
                       <TableCell className="font-medium">
-                        {sale.products?.name || 'Unknown Product'}
+                        {sale.products?.name || "Unknown Product"}
                       </TableCell>
                       <TableCell>{sale.quantity}</TableCell>
-                      <TableCell>${sale.selling_price.toFixed(2)}</TableCell>
-                      <TableCell>${(sale.total_price || sale.quantity * sale.selling_price).toFixed(2)}</TableCell>
-                      <TableCell className={calculateProfit(sale) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        ${calculateProfit(sale).toFixed(2)}
+                      <TableCell>
+                        {formatCurrency(sale.selling_price)}
                       </TableCell>
-                      <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
-                      <TableCell>{sale.description || '-'}</TableCell>
+                      <TableCell>
+                        {formatCurrency(
+                          sale.total_price || sale.quantity * sale.selling_price
+                        )}
+                      </TableCell>
+                      <TableCell
+                        className={
+                          calculateProfit(sale) >= 0
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }
+                      >
+                        {formatCurrency(calculateProfit(sale))}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(sale.sale_date).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>{sale.description || "-"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button
@@ -329,7 +393,7 @@ const Sales: React.FC = () => {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          {profile?.role === 'admin' && (
+                          {profile?.role === "admin" && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -353,7 +417,7 @@ const Sales: React.FC = () => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingSale ? 'Edit Sale' : 'Record New Sale'}
+              {editingSale ? "Edit Sale" : "Record New Sale"}
             </DialogTitle>
           </DialogHeader>
           <Form {...form}>
@@ -364,7 +428,10 @@ const Sales: React.FC = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Product</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a product" />
@@ -393,7 +460,9 @@ const Sales: React.FC = () => {
                         type="number"
                         min="1"
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        onChange={(e) =>
+                          field.onChange(parseInt(e.target.value) || 1)
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -412,7 +481,9 @@ const Sales: React.FC = () => {
                         step="0.01"
                         min="0"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          field.onChange(parseFloat(e.target.value) || 0)
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -433,11 +504,15 @@ const Sales: React.FC = () => {
                 )}
               />
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button type="submit">
-                  {editingSale ? 'Update' : 'Record Sale'}
+                  {editingSale ? "Update" : "Record Sale"}
                 </Button>
               </div>
             </form>
