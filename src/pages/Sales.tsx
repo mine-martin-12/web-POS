@@ -44,7 +44,20 @@ const saleSchema = z.object({
   product_id: z.string().min(1, "Product is required"),
   quantity: z.number().min(1, "Quantity must be at least 1"),
   selling_price: z.number().min(0, "Selling price must be non-negative"),
+  payment_method: z.enum(["cash", "mpesa", "bank", "credit"], {
+    required_error: "Payment method is required",
+  }),
   description: z.string().optional(),
+  customer_name: z.string().optional(),
+  due_date: z.string().optional(),
+}).refine((data) => {
+  if (data.payment_method === "credit") {
+    return data.customer_name && data.due_date;
+  }
+  return true;
+}, {
+  message: "Customer name and due date are required for credit sales",
+  path: ["customer_name"],
 });
 
 type SaleFormData = z.infer<typeof saleSchema>;
@@ -54,6 +67,7 @@ interface Sale {
   product_id: string;
   quantity: number;
   selling_price: number;
+  payment_method: "cash" | "mpesa" | "bank" | "credit";
   total_price?: number;
   sale_date: string;
   description?: string;
@@ -81,6 +95,9 @@ const Sales: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [saleToDelete, setSaleToDelete] = useState<string | null>(null);
 
   const form = useForm<SaleFormData>({
     resolver: zodResolver(saleSchema),
@@ -88,6 +105,7 @@ const Sales: React.FC = () => {
       product_id: "",
       quantity: 1,
       selling_price: 0,
+      payment_method: "cash",
       description: "",
     },
   });
@@ -103,13 +121,18 @@ const Sales: React.FC = () => {
           products (
             name,
             buying_price
+          ),
+          credits (
+            amount_paid,
+            amount_owed,
+            status
           )
         `
         )
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setSales(data || []);
+      setSales((data || []) as Sale[]);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -146,15 +169,20 @@ const Sales: React.FC = () => {
 
   const onSubmit = async (data: SaleFormData) => {
     try {
-      // Check stock availability before processing sale
+      // Check stock availability before processing sale (consider edit delta)
       const selectedProduct = products.find((p) => p.id === data.product_id);
       if (!selectedProduct) {
         throw new Error("Product not found");
       }
 
-      if (data.quantity > selectedProduct.stock_quantity) {
+      let effectiveAvailable = selectedProduct.stock_quantity;
+      if (editingSale && editingSale.product_id === data.product_id) {
+        effectiveAvailable += editingSale.quantity;
+      }
+
+      if (data.quantity > effectiveAvailable) {
         throw new Error(
-          `Insufficient stock. Available: ${selectedProduct.stock_quantity}, Requested: ${data.quantity}`
+          `Insufficient stock. Available: ${effectiveAvailable}, Requested: ${data.quantity}`
         );
       }
 
@@ -162,11 +190,14 @@ const Sales: React.FC = () => {
         product_id: data.product_id,
         quantity: data.quantity,
         selling_price: data.selling_price,
+        payment_method: data.payment_method,
         description: data.description || null,
         business_id: profile?.business_id,
         // total_price will be calculated by trigger
         sale_date: new Date().toISOString(),
       };
+
+      let saleId = editingSale?.id;
 
       if (editingSale) {
         const { error } = await supabase
@@ -177,10 +208,39 @@ const Sales: React.FC = () => {
         if (error) throw error;
         toast({ title: "Success", description: "Sale updated successfully" });
       } else {
-        const { error } = await supabase.from("sales").insert(saleData);
+        const { data: insertedSale, error } = await supabase
+          .from("sales")
+          .insert(saleData)
+          .select('id')
+          .single();
 
         if (error) throw error;
+        saleId = insertedSale.id;
         toast({ title: "Success", description: "Sale recorded successfully" });
+      }
+
+      // If this is a credit sale, create a credit record
+      if (data.payment_method === "credit" && data.customer_name && data.due_date && saleId) {
+        const creditData = {
+          business_id: profile?.business_id,
+          sale_id: saleId,
+          customer_name: data.customer_name,
+          amount_owed: data.quantity * data.selling_price,
+          due_date: data.due_date,
+        };
+
+        const { error: creditError } = await supabase
+          .from("credits")
+          .insert(creditData);
+
+        if (creditError) {
+          console.error("Error creating credit record:", creditError);
+          toast({
+            title: "Warning",
+            description: "Sale recorded but credit record failed to create",
+            variant: "destructive",
+          });
+        }
       }
 
       setIsDialogOpen(false);
@@ -203,12 +263,22 @@ const Sales: React.FC = () => {
       product_id: sale.product_id,
       quantity: sale.quantity,
       selling_price: sale.selling_price,
+      payment_method: sale.payment_method,
       description: sale.description || "",
     });
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleUpdateConfirm = () => {
+    setIsUpdateConfirmOpen(true);
+  };
+
+  const handleUpdateSubmit = () => {
+    setIsUpdateConfirmOpen(false);
+    form.handleSubmit(onSubmit)();
+  };
+
+  const handleDeleteConfirm = (id: string) => {
     if (profile?.role !== "admin") {
       toast({
         title: "Access Denied",
@@ -217,13 +287,24 @@ const Sales: React.FC = () => {
       });
       return;
     }
+    setSaleToDelete(id);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!saleToDelete) return;
 
     try {
-      const { error } = await supabase.from("sales").delete().eq("id", id);
+      const { error } = await supabase
+        .from("sales")
+        .delete()
+        .eq("id", saleToDelete);
 
       if (error) throw error;
       toast({ title: "Success", description: "Sale deleted successfully" });
       fetchSales();
+      setIsDeleteConfirmOpen(false);
+      setSaleToDelete(null);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -239,7 +320,9 @@ const Sales: React.FC = () => {
       "Quantity",
       "Selling Price",
       "Total Price",
+      "Payment Method",
       "Profit",
+      "Profit Status",
       "Sale Date",
       "Description",
     ];
@@ -249,12 +332,30 @@ const Sales: React.FC = () => {
         const profit = sale.products
           ? (sale.selling_price - sale.products.buying_price) * sale.quantity
           : 0;
+        let profitStatus = "Realized";
+        if (sale.payment_method === "credit" && (sale as any).credits?.[0]) {
+          const credit = (sale as any).credits[0];
+          const amountPaid = Number(credit.amount_paid) || 0;
+          const amountOwed = Number(credit.amount_owed) || 0;
+          const paymentPercentage = amountOwed > 0 ? (amountPaid / amountOwed) * 100 : 0;
+          profitStatus = paymentPercentage >= 100 ? "Fully Paid" : paymentPercentage > 0 ? `${paymentPercentage.toFixed(0)}% Paid` : "Pending";
+        } else if (sale.payment_method === "credit") {
+          profitStatus = "Pending";
+        }
         return [
           sale.products?.name || "Unknown Product",
           sale.quantity,
           sale.selling_price,
           sale.total_price || sale.quantity * sale.selling_price,
+          sale.payment_method === "mpesa"
+            ? "M-Pesa"
+            : sale.payment_method === "bank"
+            ? "Bank/Cheque"
+            : sale.payment_method === "credit"
+            ? "Credit Sale"
+            : "Cash",
           profit.toFixed(2),
+          profitStatus,
           new Date(sale.sale_date).toLocaleDateString(),
           sale.description || "",
         ].join(",");
@@ -283,11 +384,7 @@ const Sales: React.FC = () => {
 
   const openAddDialog = () => {
     setEditingSale(null);
-    form.reset({
-      quantity: 0,
-      selling_price: 0,
-      description: "",
-    });
+    form.reset();
     setIsDialogOpen(true);
   };
 
@@ -350,6 +447,7 @@ const Sales: React.FC = () => {
                     <TableHead>Quantity</TableHead>
                     <TableHead>Selling Price</TableHead>
                     <TableHead>Total Price</TableHead>
+                    <TableHead>Payment Status</TableHead>
                     <TableHead>Profit</TableHead>
                     <TableHead>Sale Date</TableHead>
                     <TableHead>Description</TableHead>
@@ -371,14 +469,105 @@ const Sales: React.FC = () => {
                           sale.total_price || sale.quantity * sale.selling_price
                         )}
                       </TableCell>
-                      <TableCell
-                        className={
-                          calculateProfit(sale) >= 0
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }
-                      >
-                        {formatCurrency(calculateProfit(sale))}
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          {sale.payment_method === "credit" && (sale as any).credits?.[0] ? (() => {
+                            const credit = (sale as any).credits[0];
+                            const amountPaid = Number(credit.amount_paid) || 0;
+                            const amountOwed = Number(credit.amount_owed) || 0;
+                            const paymentPercentage = amountOwed > 0 ? (amountPaid / amountOwed) * 100 : 0;
+                            
+                            return (
+                              <>
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  paymentPercentage >= 100
+                                    ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+                                    : paymentPercentage > 0
+                                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
+                                    : "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
+                                }`}>
+                                  {paymentPercentage >= 100 ? "Paid" : paymentPercentage > 0 ? `${paymentPercentage.toFixed(0)}% Paid` : "Unpaid"}
+                                </span>
+                                {paymentPercentage < 100 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatCurrency(amountPaid)} / {formatCurrency(amountOwed)}
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })() : sale.payment_method === "credit" ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">
+                              Credit Sale
+                            </span>
+                          ) : (
+                            <>
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                Paid
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {sale.payment_method === "mpesa"
+                                  ? "M-Pesa"
+                                  : sale.payment_method === "bank"
+                                  ? "Bank/Cheque"
+                                  : "Cash"}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          {sale.payment_method === "credit" && (sale as any).credits?.[0] ? (() => {
+                            const credit = (sale as any).credits[0];
+                            const amountPaid = Number(credit.amount_paid) || 0;
+                            const amountOwed = Number(credit.amount_owed) || 0;
+                            const paymentPercentage = amountOwed > 0 ? amountPaid / amountOwed : 0;
+                            
+                            const totalProfit = calculateProfit(sale);
+                            const actualProfit = totalProfit * paymentPercentage;
+                            const pendingProfit = totalProfit * (1 - paymentPercentage);
+                            
+                            return (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1">
+                                  <span className={
+                                    actualProfit >= 0
+                                      ? "text-green-600 dark:text-green-400"
+                                      : "text-red-600 dark:text-red-400"
+                                  }>
+                                    {formatCurrency(actualProfit)}
+                                  </span>
+                                  <span className="text-xs text-green-600 dark:text-green-400">
+                                    Actual
+                                  </span>
+                                </div>
+                                {pendingProfit > 0 && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-orange-600 dark:text-orange-400">
+                                      {formatCurrency(pendingProfit)}
+                                    </span>
+                                    <span className="text-xs text-orange-600 dark:text-orange-400">
+                                      Pending
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })() : (
+                            <span className={
+                              calculateProfit(sale) >= 0
+                                ? "text-green-600 dark:text-green-400"
+                                : "text-red-600 dark:text-red-400"
+                            }>
+                              {formatCurrency(calculateProfit(sale))}
+                              {sale.payment_method === "credit" && (
+                                <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">
+                                  Pending
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {new Date(sale.sale_date).toLocaleDateString()}
@@ -397,7 +586,7 @@ const Sales: React.FC = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDelete(sale.id)}
+                              onClick={() => handleDeleteConfirm(sale.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -421,7 +610,10 @@ const Sales: React.FC = () => {
             </DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form
+              onSubmit={editingSale ? (e) => { e.preventDefault(); handleUpdateConfirm(); } : form.handleSubmit(onSubmit)}
+              className="space-y-4"
+            >
               <FormField
                 control={form.control}
                 name="product_id"
@@ -492,6 +684,62 @@ const Sales: React.FC = () => {
               />
               <FormField
                 control={form.control}
+                name="payment_method"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Payment Method</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select payment method" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="mpesa">M-Pesa</SelectItem>
+                        <SelectItem value="bank">Bank/Cheque</SelectItem>
+                        <SelectItem value="credit">Credit</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {form.watch("payment_method") === "credit" && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="customer_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customer Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter customer name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="due_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Due Date</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="date" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+              <FormField
+                control={form.control}
                 name="description"
                 render={({ field }) => (
                   <FormItem>
@@ -517,6 +765,51 @@ const Sales: React.FC = () => {
               </div>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Confirmation Dialog */}
+      <Dialog open={isUpdateConfirmOpen} onOpenChange={setIsUpdateConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Submission</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            Are you sure you want to submit these details?
+          </p>
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsUpdateConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateSubmit}>Confirm</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            Are you sure you want to delete this product? This action cannot be
+            undone.
+          </p>
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -8,11 +8,14 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import AuthGuard from "@/components/auth/AuthGuard";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import InactivityWrapper from "@/components/layout/InactivityWrapper";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Sales from "./pages/Sales";
+import Credits from "./pages/Credits";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -30,41 +33,61 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               
               {/* Protected routes */}
               <Route path="/dashboard" element={
                 <AuthGuard>
-                  <DashboardLayout>
-                    <Dashboard />
-                  </DashboardLayout>
+                  <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
+                    <DashboardLayout>
+                      <Dashboard />
+                    </DashboardLayout>
+                  </InactivityWrapper>
                 </AuthGuard>
               } />
               <Route path="/products" element={
                 <AuthGuard>
-                  <DashboardLayout>
-                    <Products />
-                  </DashboardLayout>
+                  <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
+                    <DashboardLayout>
+                      <Products />
+                    </DashboardLayout>
+                  </InactivityWrapper>
                 </AuthGuard>
               } />
               <Route path="/sales" element={
                 <AuthGuard>
-                  <DashboardLayout>
-                    <Sales />
-                  </DashboardLayout>
+                  <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
+                    <DashboardLayout>
+                      <Sales />
+                    </DashboardLayout>
+                  </InactivityWrapper>
+                </AuthGuard>
+              } />
+              <Route path="/credits" element={
+                <AuthGuard>
+                  <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
+                    <DashboardLayout>
+                      <Credits />
+                    </DashboardLayout>
+                  </InactivityWrapper>
                 </AuthGuard>
               } />
               <Route path="/users" element={
                 <AuthGuard>
-                  <DashboardLayout>
-                    <Users />
-                  </DashboardLayout>
+                  <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
+                    <DashboardLayout>
+                      <Users />
+                    </DashboardLayout>
+                  </InactivityWrapper>
                 </AuthGuard>
               } />
               <Route path="/settings" element={
                 <AuthGuard>
-                  <DashboardLayout>
-                    <Settings />
-                  </DashboardLayout>
+                  <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
+                    <DashboardLayout>
+                      <Settings />
+                    </DashboardLayout>
+                  </InactivityWrapper>
                 </AuthGuard>
               } />
               

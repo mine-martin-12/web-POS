@@ -7,11 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Eye, EyeOff, Building2, User } from 'lucide-react';
+import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
+import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal';
 
 const Auth = () => {
   const { user, signIn, signUp } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   // Sign In Form State
   const [signInEmail, setSignInEmail] = useState('');
@@ -117,6 +120,18 @@ const Auth = () => {
                     </div>
                   </div>
 
+                  <div className="flex justify-between items-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-primary hover:text-primary/80"
+                    >
+                      Forgot password?
+                    </Button>
+                  </div>
+
                   <Button 
                     type="submit" 
                     className="w-full btn-gradient-primary"
@@ -200,7 +215,8 @@ const Auth = () => {
                         )}
                       </Button>
                     </div>
-                  </div>
+                    </div>
+                    <PasswordStrengthIndicator password={signUpPassword} className="mt-2" />
 
                   <Button 
                     type="submit" 
@@ -214,6 +230,11 @@ const Auth = () => {
             </Tabs>
           </CardContent>
         </Card>
+
+        <ForgotPasswordModal 
+          isOpen={showForgotPassword}
+          onClose={() => setShowForgotPassword(false)}
+        />
 
         <p className="text-center text-sm text-muted-foreground mt-4">
           By continuing, you agree to our terms of service and privacy policy.

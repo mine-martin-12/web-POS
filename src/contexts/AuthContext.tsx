@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { validatePassword } from '@/components/auth/PasswordStrengthIndicator';
 
 interface Profile {
   id: string;
@@ -144,6 +145,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string, businessName: string) => {
     try {
+      // Validate password strength
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.isValid) {
+        toast({
+          title: "Weak Password",
+          description: "Password must be at least 8 characters with uppercase, lowercase, number, and special character.",
+          variant: "destructive"
+        });
+        return { error: new Error('Password does not meet requirements') };
+      }
+
+      // Check if email already exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (checkError) {
+        toast({
+          title: "Error",
+          description: "Failed to validate email. Please try again.",
+          variant: "destructive"
+        });
+        return { error: checkError };
+      }
+
+      if (existingUser) {
+        const error = new Error('This email is already registered. Please log in or use a different email.');
+        toast({
+          title: "Email Already Exists",
+          description: error.message,
+          variant: "destructive"
+        });
+        return { error };
+      }
+
       const redirectUrl = `${window.location.origin}/`;
       
       const { error } = await supabase.auth.signUp({
@@ -161,11 +199,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive"
-        });
+        // Handle specific Supabase auth errors
+        if (error.message.includes('already registered')) {
+          toast({
+            title: "Email Already Exists",
+            description: "This email is already registered. Please log in or use a different email.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive"
+          });
+        }
       } else {
         toast({
           title: "Success",
@@ -186,10 +233,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
+      // Clear any existing timeouts/intervals
+      const allTimeouts = window.setTimeout(() => {}, 0);
+      for (let i = 1; i < allTimeouts; i++) {
+        window.clearTimeout(i);
+      }
+
+      // Sign out from Supabase (this will revoke the refresh token)
       await supabase.auth.signOut();
+      
+      // Clear local state
       setUser(null);
       setSession(null);
       setProfile(null);
+      
+      // Clear any CSRF tokens or other security-related data
+      localStorage.removeItem('csrf_token');
+      
       toast({
         title: "Success",
         description: "Signed out successfully!"

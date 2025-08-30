@@ -33,13 +33,19 @@ import { cn } from "@/lib/utils";
 
 interface DashboardMetrics {
   totalSalesAmount: number;
+  actualRevenue: number;
+  pendingRevenue: number;
   totalSalesCount: number;
+  paidSalesCount: number;
+  creditSalesCount: number;
   totalProfit: number;
+  actualProfit: number;
+  pendingProfit: number;
   averageSale: number;
   salesGrowth: number;
   topProducts: Array<{ name: string; totalSales: number; quantity: number }>;
   bottomProducts: Array<{ name: string; totalSales: number; quantity: number }>;
-  salesChart: Array<{ date: string; sales: number; profit: number }>;
+  salesChart: Array<{ date: string; sales: number; profit: number; actualSales: number; actualProfit: number }>;
 }
 
 const Dashboard = () => {
@@ -62,7 +68,7 @@ const Dashboard = () => {
       const fromDate = startOfDay(dateRange.from);
       const toDate = endOfDay(dateRange.to);
 
-      // Fetch sales data for the selected period
+      // Fetch sales data with credit information
       const { data: salesData, error: salesError } = await supabase
         .from("sales")
         .select(
@@ -72,10 +78,16 @@ const Dashboard = () => {
           selling_price,
           total_price,
           sale_date,
+          payment_method,
           products (
             id,
             name,
             buying_price
+          ),
+          credits (
+            amount_paid,
+            amount_owed,
+            status
           )
         `
         )
@@ -86,21 +98,61 @@ const Dashboard = () => {
 
       if (salesError) throw salesError;
 
-      // Calculate metrics
-      const totalSalesAmount =
-        salesData?.reduce((sum, sale) => sum + Number(sale.total_price), 0) ||
-        0;
+      // Calculate metrics with partial payment support
+      let totalSalesAmount = 0;
+      let actualRevenue = 0;
+      let pendingRevenue = 0;
+      let totalProfit = 0;
+      let actualProfit = 0;
+      let pendingProfit = 0;
+      
       const totalSalesCount = salesData?.length || 0;
+      let paidSalesCount = 0;
+      let creditSalesCount = 0;
 
-      // Calculate profit
-      const totalProfit =
-        salesData?.reduce((sum, sale) => {
-          const buyingPrice = Number(sale.products?.buying_price) || 0;
-          const sellingPrice = Number(sale.selling_price) || 0;
-          const quantity = Number(sale.quantity) || 0;
-          const profitPerUnit = sellingPrice - buyingPrice;
-          return sum + profitPerUnit * quantity;
-        }, 0) || 0;
+      salesData?.forEach(sale => {
+        const totalPrice = Number(sale.total_price) || 0;
+        const buyingPrice = Number(sale.products?.buying_price) || 0;
+        const sellingPrice = Number(sale.selling_price) || 0;
+        const quantity = Number(sale.quantity) || 0;
+        const saleProfit = (sellingPrice - buyingPrice) * quantity;
+
+        totalSalesAmount += totalPrice;
+        totalProfit += saleProfit;
+
+        if (sale.payment_method === 'credit' && sale.credits?.[0]) {
+          // Credit sale with payment tracking
+          const amountPaid = Number(sale.credits[0].amount_paid) || 0;
+          const amountOwed = Number(sale.credits[0].amount_owed) || 0;
+          const paymentPercentage = amountOwed > 0 ? amountPaid / amountOwed : 0;
+
+          const paidRevenue = totalPrice * paymentPercentage;
+          const unpaidRevenue = totalPrice * (1 - paymentPercentage);
+          const paidProfit = saleProfit * paymentPercentage;
+          const unpaidProfit = saleProfit * (1 - paymentPercentage);
+
+          actualRevenue += paidRevenue;
+          pendingRevenue += unpaidRevenue;
+          actualProfit += paidProfit;
+          pendingProfit += unpaidProfit;
+
+          if (paymentPercentage >= 1) {
+            paidSalesCount++;
+          } else {
+            creditSalesCount++;
+          }
+        } else if (sale.payment_method !== 'credit') {
+          // Fully paid sale
+          actualRevenue += totalPrice;
+          actualProfit += saleProfit;
+          paidSalesCount++;
+        } else {
+          // Credit sale without credit record (fallback)
+          pendingRevenue += totalPrice;
+          pendingProfit += saleProfit;
+          creditSalesCount++;
+        }
+      });
 
       const averageSale =
         totalSalesCount > 0 ? totalSalesAmount / totalSalesCount : 0;
@@ -114,19 +166,38 @@ const Dashboard = () => {
 
       const { data: prevSalesData } = await supabase
         .from("sales")
-        .select("total_price")
+        .select("total_price, payment_method")
         .eq("business_id", profile.business_id)
         .gte("sale_date", prevFromDate.toISOString())
         .lte("sale_date", prevToDate.toISOString());
 
-      const prevTotalSales =
-        prevSalesData?.reduce(
-          (sum, sale) => sum + Number(sale.total_price),
-          0
-        ) || 0;
+      // Calculate growth based on actual revenue with credit payment tracking
+      const { data: prevSalesWithCredits } = await supabase
+        .from("sales")
+        .select(`
+          total_price,
+          payment_method,
+          credits (amount_paid, amount_owed)
+        `)
+        .eq("business_id", profile.business_id)
+        .gte("sale_date", prevFromDate.toISOString())
+        .lte("sale_date", prevToDate.toISOString());
+
+      let prevActualRevenue = 0;
+      prevSalesWithCredits?.forEach(sale => {
+        const totalPrice = Number(sale.total_price) || 0;
+        if (sale.payment_method === 'credit' && sale.credits?.[0]) {
+          const amountPaid = Number(sale.credits[0].amount_paid) || 0;
+          const amountOwed = Number(sale.credits[0].amount_owed) || 0;
+          const paymentPercentage = amountOwed > 0 ? amountPaid / amountOwed : 0;
+          prevActualRevenue += totalPrice * paymentPercentage;
+        } else if (sale.payment_method !== 'credit') {
+          prevActualRevenue += totalPrice;
+        }
+      });
       const salesGrowth =
-        prevTotalSales > 0
-          ? ((totalSalesAmount - prevTotalSales) / prevTotalSales) * 100
+        prevActualRevenue > 0
+          ? ((actualRevenue - prevActualRevenue) / prevActualRevenue) * 100
           : 0;
 
       // Top and bottom products
@@ -149,23 +220,39 @@ const Dashboard = () => {
       const topProducts = sortedProducts.slice(0, 10);
       const bottomProducts = sortedProducts.slice(-10).reverse();
 
-      // Sales chart data (group by day)
+      // Sales chart data (group by day) - separate actual and total
       const salesByDate =
         salesData?.reduce((acc, sale) => {
           const date = format(new Date(sale.sale_date), "yyyy-MM-dd");
           if (!acc[date]) {
-            acc[date] = { sales: 0, profit: 0 };
+            acc[date] = { sales: 0, profit: 0, actualSales: 0, actualProfit: 0 };
           }
-          acc[date].sales += Number(sale.total_price);
-
+          
+          const saleAmount = Number(sale.total_price);
           const buyingPrice = Number(sale.products?.buying_price) || 0;
           const sellingPrice = Number(sale.selling_price) || 0;
           const quantity = Number(sale.quantity) || 0;
           const profitPerUnit = sellingPrice - buyingPrice;
-          acc[date].profit += profitPerUnit * quantity;
+          const saleProfit = profitPerUnit * quantity;
+
+          acc[date].sales += saleAmount;
+          acc[date].profit += saleProfit;
+
+          // Calculate actual metrics based on payment percentage
+          if (sale.payment_method === 'credit' && sale.credits?.[0]) {
+            const amountPaid = Number(sale.credits[0].amount_paid) || 0;
+            const amountOwed = Number(sale.credits[0].amount_owed) || 0;
+            const paymentPercentage = amountOwed > 0 ? amountPaid / amountOwed : 0;
+            
+            acc[date].actualSales += saleAmount * paymentPercentage;
+            acc[date].actualProfit += saleProfit * paymentPercentage;
+          } else if (sale.payment_method !== 'credit') {
+            acc[date].actualSales += saleAmount;
+            acc[date].actualProfit += saleProfit;
+          }
 
           return acc;
-        }, {} as Record<string, { sales: number; profit: number }>) || {};
+        }, {} as Record<string, { sales: number; profit: number; actualSales: number; actualProfit: number }>) || {};
 
       const salesChart = Object.entries(salesByDate)
         .map(([date, data]) => ({
@@ -178,8 +265,14 @@ const Dashboard = () => {
 
       setMetrics({
         totalSalesAmount,
+        actualRevenue,
+        pendingRevenue,
         totalSalesCount,
+        paidSalesCount,
+        creditSalesCount,
         totalProfit,
+        actualProfit,
+        pendingProfit,
         averageSale,
         salesGrowth,
         topProducts,
@@ -360,46 +453,72 @@ const Dashboard = () => {
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
         <Card className="card-elevated hover-lift">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Sales
+              Actual Revenue
             </CardTitle>
             <DollarSign className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              {metrics ? formatCurrency(metrics.totalSalesAmount) : "KES 0.00"}
+              {metrics ? formatCurrency(metrics.actualRevenue) : "KES 0.00"}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              From {metrics?.paidSalesCount || 0} paid sales
+            </p>
           </CardContent>
         </Card>
 
         <Card className="card-elevated hover-lift">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Sales Count
+              Pending Revenue
+            </CardTitle>
+            <Package className="h-4 w-4 text-warning" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground">
+              {metrics ? formatCurrency(metrics.pendingRevenue) : "KES 0.00"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              From {metrics?.creditSalesCount || 0} credit sales
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="card-elevated hover-lift">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Sales
             </CardTitle>
             <ShoppingCart className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              {metrics?.totalSalesCount || 0}
+              {metrics ? formatCurrency(metrics.totalSalesAmount) : "KES 0.00"}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {metrics?.totalSalesCount || 0} total transactions
+            </p>
           </CardContent>
         </Card>
 
         <Card className="card-elevated hover-lift">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Profit
+              Actual Profit
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              {metrics ? formatCurrency(metrics.totalProfit) : "$0.00"}
+              {metrics ? formatCurrency(metrics.actualProfit) : "KES 0.00"}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Cash flow profit
+            </p>
           </CardContent>
         </Card>
 
@@ -412,7 +531,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              {metrics ? formatCurrency(metrics.averageSale) : "$0.00"}
+              {metrics ? formatCurrency(metrics.averageSale) : "KES 0.00"}
             </div>
           </CardContent>
         </Card>
@@ -420,7 +539,7 @@ const Dashboard = () => {
         <Card className="card-elevated hover-lift">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Sales Growth
+              Revenue Growth
             </CardTitle>
             <TrendingUp
               className={cn(
@@ -442,6 +561,9 @@ const Dashboard = () => {
             >
               {metrics ? `${metrics.salesGrowth.toFixed(1)}%` : "0%"}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Actual revenue vs. previous period
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -450,7 +572,10 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="card-elevated">
           <CardHeader>
-            <CardTitle>Sales & Profit Over Time</CardTitle>
+            <CardTitle>Revenue & Profit Over Time</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Solid lines show actual revenue/profit, dotted lines show total including pending
+            </p>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
@@ -474,22 +599,40 @@ const Dashboard = () => {
                     }}
                     formatter={(value: any, name: string) => [
                       formatCurrency(Number(value)),
-                      name === "sales" ? "Sales" : "Profit",
+                      name === "actualSales" ? "Actual Revenue" : 
+                      name === "actualProfit" ? "Actual Profit" :
+                      name === "sales" ? "Total Sales" : "Total Profit",
                     ]}
                   />
                   <Line
                     type="monotone"
-                    dataKey="sales"
+                    dataKey="actualSales"
                     stroke="hsl(var(--primary))"
                     strokeWidth={2}
                     dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
                   />
                   <Line
                     type="monotone"
-                    dataKey="profit"
-                    stroke="hsl(var(--success))"
+                    dataKey="sales"
+                    stroke="hsl(var(--primary))"
                     strokeWidth={2}
-                    dot={{ fill: "hsl(var(--success))", strokeWidth: 2, r: 4 }}
+                    strokeDasharray="5 5"
+                    dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 2 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="actualProfit"
+                    stroke="hsl(var(--accent))"
+                    strokeWidth={2}
+                    dot={{ fill: "hsl(var(--accent))", strokeWidth: 2, r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="profit"
+                    stroke="hsl(var(--accent))"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={{ fill: "hsl(var(--accent))", strokeWidth: 2, r: 2 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
