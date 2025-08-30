@@ -86,6 +86,7 @@ const Products: React.FC = () => {
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [isStockConfirmOpen, setIsStockConfirmOpen] = useState(false);
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -183,7 +184,12 @@ const Products: React.FC = () => {
   };
 
   const handleStockSubmit = async (data: StockFormData) => {
+    setIsStockConfirmOpen(true);
+  };
+
+  const confirmStockSubmit = async () => {
     if (!stockProduct) return;
+    const data = stockForm.getValues();
 
     try {
       const { error } = await supabase
@@ -201,10 +207,12 @@ const Products: React.FC = () => {
       });
 
       setIsStockDialogOpen(false);
+      setIsStockConfirmOpen(false);
       setStockProduct(null);
       stockForm.reset();
       fetchProducts();
     } catch (error: any) {
+      setIsStockConfirmOpen(false);
       toast({
         title: "Error",
         description: "Failed to update stock",
@@ -656,6 +664,27 @@ const Products: React.FC = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Stock Addition Confirmation Dialog */}
+      <AlertDialog
+        open={isStockConfirmOpen}
+        onOpenChange={setIsStockConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Submission</AlertDialogTitle>
+            <AlertDialogDescription>
+              Confirm Submission – Are you sure you want to add stock for this item?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmStockSubmit}>
+              Add Stock
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

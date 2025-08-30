@@ -35,7 +35,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Edit, Trash2, Download } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Download, Printer } from "lucide-react";
+import { Receipt } from "@/components/receipt/Receipt";
+import { printReceipt } from "@/utils/printUtils";
+import { createRoot } from 'react-dom/client';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -73,6 +76,11 @@ interface Sale {
   description?: string;
   created_at: string;
   updated_at: string;
+  product_name?: string;
+  customer_name?: string;
+  due_date?: string;
+  buying_price?: number;
+  payment_percentage?: number;
   products?: {
     name: string;
     buying_price: number;
@@ -98,6 +106,9 @@ const Sales: React.FC = () => {
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [saleToDelete, setSaleToDelete] = useState<string | null>(null);
+  const [isPrintConfirmOpen, setIsPrintConfirmOpen] = useState(false);
+  const [isRecordSaleConfirmOpen, setIsRecordSaleConfirmOpen] = useState(false);
+  const [saleToprint, setSaleToPrint] = useState<Sale | null>(null);
 
   const form = useForm<SaleFormData>({
     resolver: zodResolver(saleSchema),
@@ -168,6 +179,14 @@ const Sales: React.FC = () => {
   }, []);
 
   const onSubmit = async (data: SaleFormData) => {
+    if (!editingSale) {
+      setIsRecordSaleConfirmOpen(true);
+      return;
+    }
+    handleSubmit(data);
+  };
+
+  const handleSubmit = async (data: SaleFormData) => {
     try {
       // Check stock availability before processing sale (consider edit delta)
       const selectedProduct = products.find((p) => p.id === data.product_id);
@@ -275,7 +294,12 @@ const Sales: React.FC = () => {
 
   const handleUpdateSubmit = () => {
     setIsUpdateConfirmOpen(false);
-    form.handleSubmit(onSubmit)();
+    form.handleSubmit(handleSubmit)();
+  };
+
+  const handleRecordSaleSubmit = () => {
+    setIsRecordSaleConfirmOpen(false);
+    form.handleSubmit(handleSubmit)();
   };
 
   const handleDeleteConfirm = (id: string) => {
@@ -376,6 +400,35 @@ const Sales: React.FC = () => {
     return (sale.selling_price - sale.products.buying_price) * sale.quantity;
   };
 
+  const handlePrintClick = (sale: Sale) => {
+    setSaleToPrint(sale);
+    setIsPrintConfirmOpen(true);
+  };
+
+  const handlePrintReceipt = () => {
+    if (!saleToprint) return;
+    
+    // Create a temporary div to render the receipt
+    const tempDiv = document.createElement('div');
+    const root = createRoot(tempDiv);
+    
+    // Add product name to sale for receipt
+    const saleWithProduct = {
+      ...saleToprint,
+      product_name: saleToprint.products?.name || "Unknown Product"
+    };
+    
+    root.render(<Receipt sale={saleWithProduct} />);
+    
+    // Wait for render to complete
+    setTimeout(() => {
+      printReceipt(tempDiv.innerHTML);
+      root.unmount();
+      setIsPrintConfirmOpen(false);
+      setSaleToPrint(null);
+    }, 100);
+  };
+
   const filteredSales = sales.filter(
     (sale) =>
       sale.products?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -384,7 +437,13 @@ const Sales: React.FC = () => {
 
   const openAddDialog = () => {
     setEditingSale(null);
-    form.reset();
+    form.reset({
+      product_id: "",
+      quantity: 1,
+      selling_price: 0,
+      payment_method: "cash",
+      description: "",
+    });
     setIsDialogOpen(true);
   };
 
@@ -575,6 +634,14 @@ const Sales: React.FC = () => {
                       <TableCell>{sale.description || "-"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePrintClick(sale)}
+                            title="Print Receipt"
+                          >
+                            <Printer className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
@@ -809,6 +876,48 @@ const Sales: React.FC = () => {
             <Button variant="destructive" onClick={handleDelete}>
               Delete
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Print Confirmation Dialog */}
+      <Dialog open={isPrintConfirmOpen} onOpenChange={setIsPrintConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Print Receipt</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            Confirm you want to print the receipt.
+          </p>
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsPrintConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handlePrintReceipt}>Print</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Sale Confirmation Dialog */}
+      <Dialog open={isRecordSaleConfirmOpen} onOpenChange={setIsRecordSaleConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Submission</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            Confirm Submission – Are you sure you want to record this sale?
+          </p>
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsRecordSaleConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleRecordSaleSubmit}>Record Sale</Button>
           </div>
         </DialogContent>
       </Dialog>
