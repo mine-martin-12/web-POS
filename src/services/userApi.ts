@@ -133,12 +133,22 @@ export const userApi = {
   },
 
   async deleteUser(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('user_id', id);
-    
-    if (error) {
+    try {
+      // Call the edge function to securely delete the user from both profiles and auth
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { userId: id }
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to delete user');
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to delete user');
+      }
+    } catch (error: any) {
+      console.error('Delete user error:', error);
       throw new Error(error.message || 'Failed to delete user');
     }
   },

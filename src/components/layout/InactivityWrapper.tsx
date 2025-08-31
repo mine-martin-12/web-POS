@@ -9,8 +9,8 @@ interface InactivityWrapperProps {
 
 const InactivityWrapper: React.FC<InactivityWrapperProps> = ({ 
   children, 
-  timeoutMinutes = 6,
-  warningMinutes = 3
+  timeoutMinutes = 5,
+  warningMinutes = 2.5
 }) => {
   // Convert minutes to milliseconds
   const timeout = timeoutMinutes * 60 * 1000;

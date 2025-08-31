@@ -466,119 +466,103 @@ const Dashboard = () => {
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-6">
         <Card className="card-elevated hover-lift">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Actual Revenue
             </CardTitle>
-            <DollarSign className="h-4 w-4 text-success" />
+            <DollarSign className="h-4 w-4 text-success shrink-0" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
+          <CardContent className="pb-4">
+            <div className="text-2xl font-bold text-foreground mb-1">
               {metrics ? formatCurrency(metrics.actualRevenue) : "KES 0.00"}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground">
               From {metrics?.paidSalesCount || 0} paid sales
             </p>
           </CardContent>
         </Card>
 
         <Card className="card-elevated hover-lift">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Pending Revenue
             </CardTitle>
-            <Package className="h-4 w-4 text-warning" />
+            <Package className="h-4 w-4 text-warning shrink-0" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
+          <CardContent className="pb-4">
+            <div className="text-2xl font-bold text-foreground mb-1">
               {metrics ? formatCurrency(metrics.pendingRevenue) : "KES 0.00"}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground">
               From {metrics?.creditSalesCount || 0} credit sales
             </p>
           </CardContent>
         </Card>
 
         <Card className="card-elevated hover-lift">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Sales
             </CardTitle>
-            <ShoppingCart className="h-4 w-4 text-primary" />
+            <ShoppingCart className="h-4 w-4 text-primary shrink-0" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
+          <CardContent className="pb-4">
+            <div className="text-2xl font-bold text-foreground mb-1">
               {metrics ? formatCurrency(metrics.totalSalesAmount) : "KES 0.00"}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground">
               {metrics?.totalSalesCount || 0} total transactions
             </p>
           </CardContent>
         </Card>
 
         <Card className="card-elevated hover-lift">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Actual Profit
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-accent" />
+            <TrendingUp className="h-4 w-4 text-success shrink-0" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
+          <CardContent className="pb-4">
+            <div className="text-2xl font-bold text-foreground mb-1">
               {metrics ? formatCurrency(metrics.actualProfit) : "KES 0.00"}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Cash flow profit
-            </p>
+            <p className="text-xs text-muted-foreground">Cash flow profit</p>
           </CardContent>
         </Card>
 
         <Card className="card-elevated hover-lift">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Pending Profit
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-warning shrink-0" />
+          </CardHeader>
+          <CardContent className="pb-4">
+            <div className="text-2xl font-bold text-foreground mb-1">
+              {metrics ? formatCurrency(metrics.pendingProfit) : "KES 0.00"}
+            </div>
+            <p className="text-xs text-muted-foreground">From credit sales</p>
+          </CardContent>
+        </Card>
+
+        <Card className="card-elevated hover-lift">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Average Sale
             </CardTitle>
-            <Target className="h-4 w-4 text-warning" />
+            <Target className="h-4 w-4 text-primary shrink-0" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
+          <CardContent className="pb-4">
+            <div className="text-2xl font-bold text-foreground mb-1">
               {metrics ? formatCurrency(metrics.averageSale) : "KES 0.00"}
             </div>
+            <p className="text-xs text-muted-foreground">Per transaction</p>
           </CardContent>
         </Card>
 
-        <Card className="card-elevated hover-lift">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Revenue Growth
-            </CardTitle>
-            <TrendingUp
-              className={cn(
-                "h-4 w-4",
-                metrics && metrics.salesGrowth >= 0
-                  ? "text-success"
-                  : "text-destructive"
-              )}
-            />
-          </CardHeader>
-          <CardContent>
-            <div
-              className={cn(
-                "text-2xl font-bold",
-                metrics && metrics.salesGrowth >= 0
-                  ? "text-success"
-                  : "text-destructive"
-              )}
-            >
-              {metrics ? `${metrics.salesGrowth.toFixed(1)}%` : "0%"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Actual revenue vs. previous period
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Charts */}
