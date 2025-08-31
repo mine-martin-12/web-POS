@@ -18,24 +18,34 @@ export const useTheme = () => {
 };
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>('light');
-
-  useEffect(() => {
-    // Check for saved theme preference or default to light mode
-    const savedTheme = localStorage.getItem('theme') as Theme;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark');
+  const [theme, setTheme] = useState<Theme>(() => {
+    // Initialize theme immediately to prevent context issues
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme') as Theme;
+      if (savedTheme) {
+        return savedTheme;
+      } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark';
+      }
     }
-  }, []);
+    return 'light';
+  });
 
   useEffect(() => {
-    // Apply theme to document
+    // Apply theme to document with transition
     const root = document.documentElement;
+    
+    // Add transition class for smoother theme switching
+    root.style.setProperty('--theme-transition', 'color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease');
+    
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
     localStorage.setItem('theme', theme);
+    
+    // Remove transition after animation completes
+    setTimeout(() => {
+      root.style.removeProperty('--theme-transition');
+    }, 200);
   }, [theme]);
 
   const toggleTheme = () => {

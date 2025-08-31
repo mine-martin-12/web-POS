@@ -113,10 +113,14 @@ export const userApi = {
       })
       .eq('user_id', id)
       .select()
-      .single();
+      .maybeSingle();
     
     if (error) {
       throw new Error(error.message || 'Failed to update user');
+    }
+    
+    if (!data) {
+      throw new Error('User not found');
     }
     
     return {

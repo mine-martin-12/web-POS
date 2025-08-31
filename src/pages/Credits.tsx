@@ -5,11 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, DollarSign, Calendar, User } from 'lucide-react';
+import { Search, DollarSign, Calendar, User, Edit, Trash2 } from 'lucide-react';
 
 interface Credit {
   id: string;
@@ -31,6 +33,16 @@ const Credits: React.FC = () => {
   const [selectedCredit, setSelectedCredit] = useState<Credit | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditConfirmOpen, setIsEditConfirmOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    customer_name: '',
+    amount_owed: '',
+    due_date: '',
+    status: 'unpaid' as 'unpaid' | 'partially_paid' | 'paid'
+  });
 
   useEffect(() => {
     if (user) {
@@ -99,6 +111,95 @@ const Credits: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to record payment',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openEditDialog = (credit: Credit) => {
+    setSelectedCredit(credit);
+    setEditFormData({
+      customer_name: credit.customer_name,
+      amount_owed: credit.amount_owed.toString(),
+      due_date: credit.due_date.split('T')[0],
+      status: credit.status
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = () => {
+    setIsEditDialogOpen(false);
+    setIsEditConfirmOpen(true);
+  };
+
+  const handleEditConfirm = async () => {
+    if (!selectedCredit) return;
+
+    try {
+      const { error } = await supabase
+        .from('credits')
+        .update({
+          customer_name: editFormData.customer_name,
+          amount_owed: parseFloat(editFormData.amount_owed),
+          due_date: editFormData.due_date,
+          status: editFormData.status
+        })
+        .eq('id', selectedCredit.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Credit Updated',
+        description: 'Credit record has been updated successfully',
+      });
+
+      setIsEditConfirmOpen(false);
+      setSelectedCredit(null);
+      fetchCredits();
+    } catch (error) {
+      console.error('Error updating credit:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update credit record',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openDeleteDialog = (credit: Credit) => {
+    setSelectedCredit(credit);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteSubmit = () => {
+    setIsDeleteDialogOpen(false);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedCredit) return;
+
+    try {
+      const { error } = await supabase
+        .from('credits')
+        .delete()
+        .eq('id', selectedCredit.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Credit Deleted',
+        description: 'Credit record has been deleted successfully',
+      });
+
+      setIsDeleteConfirmOpen(false);
+      setSelectedCredit(null);
+      fetchCredits();
+    } catch (error) {
+      console.error('Error deleting credit:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete credit record',
         variant: 'destructive',
       });
     }
@@ -228,18 +329,34 @@ const Credits: React.FC = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {credit.status !== 'paid' && (
+                          <div className="flex gap-2">
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                setSelectedCredit(credit);
-                                setIsPaymentDialogOpen(true);
-                              }}
+                              onClick={() => openEditDialog(credit)}
                             >
-                              Record Payment
+                              <Edit className="h-4 w-4" />
                             </Button>
-                          )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openDeleteDialog(credit)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            {credit.status !== 'paid' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedCredit(credit);
+                                  setIsPaymentDialogOpen(true);
+                                }}
+                              >
+                                Record Payment
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -295,6 +412,97 @@ const Credits: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Credit Record</DialogTitle>
+            <DialogDescription>
+              Update credit details for {selectedCredit?.customer_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-customer-name">Customer Name</Label>
+              <Input
+                id="edit-customer-name"
+                value={editFormData.customer_name}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, customer_name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-amount-owed">Amount Owed</Label>
+              <Input
+                id="edit-amount-owed"
+                type="number"
+                step="0.01"
+                value={editFormData.amount_owed}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, amount_owed: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-due-date">Due Date</Label>
+              <Input
+                id="edit-due-date"
+                type="date"
+                value={editFormData.due_date}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, due_date: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-status">Status</Label>
+              <Select value={editFormData.status} onValueChange={(value: 'unpaid' | 'partially_paid' | 'paid') => setEditFormData(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                  <SelectItem value="partially_paid">Partially Paid</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditSubmit}>Update Credit</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={isEditConfirmOpen} onOpenChange={setIsEditConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Submission</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to update this credit record?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEditConfirm}>Update</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this credit record? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
