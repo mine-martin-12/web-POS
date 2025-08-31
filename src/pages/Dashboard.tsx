@@ -45,7 +45,13 @@ interface DashboardMetrics {
   salesGrowth: number;
   topProducts: Array<{ name: string; totalSales: number; quantity: number }>;
   bottomProducts: Array<{ name: string; totalSales: number; quantity: number }>;
-  salesChart: Array<{ date: string; sales: number; profit: number; actualSales: number; actualProfit: number }>;
+  salesChart: Array<{
+    date: string;
+    sales: number;
+    profit: number;
+    actualSales: number;
+    actualProfit: number;
+  }>;
 }
 
 const Dashboard = () => {
@@ -105,12 +111,12 @@ const Dashboard = () => {
       let totalProfit = 0;
       let actualProfit = 0;
       let pendingProfit = 0;
-      
+
       const totalSalesCount = salesData?.length || 0;
       let paidSalesCount = 0;
       let creditSalesCount = 0;
 
-      salesData?.forEach(sale => {
+      salesData?.forEach((sale) => {
         const totalPrice = Number(sale.total_price) || 0;
         const buyingPrice = Number(sale.products?.buying_price) || 0;
         const sellingPrice = Number(sale.selling_price) || 0;
@@ -120,11 +126,12 @@ const Dashboard = () => {
         totalSalesAmount += totalPrice;
         totalProfit += saleProfit;
 
-        if (sale.payment_method === 'credit' && sale.credits?.[0]) {
+        if (sale.payment_method === "credit" && sale.credits?.[0]) {
           // Credit sale with payment tracking
           const amountPaid = Number(sale.credits[0].amount_paid) || 0;
           const amountOwed = Number(sale.credits[0].amount_owed) || 0;
-          const paymentPercentage = amountOwed > 0 ? amountPaid / amountOwed : 0;
+          const paymentPercentage =
+            amountOwed > 0 ? amountPaid / amountOwed : 0;
 
           const paidRevenue = totalPrice * paymentPercentage;
           const unpaidRevenue = totalPrice * (1 - paymentPercentage);
@@ -141,7 +148,7 @@ const Dashboard = () => {
           } else {
             creditSalesCount++;
           }
-        } else if (sale.payment_method !== 'credit') {
+        } else if (sale.payment_method !== "credit") {
           // Fully paid sale
           actualRevenue += totalPrice;
           actualProfit += saleProfit;
@@ -174,24 +181,27 @@ const Dashboard = () => {
       // Calculate growth based on actual revenue with credit payment tracking
       const { data: prevSalesWithCredits } = await supabase
         .from("sales")
-        .select(`
+        .select(
+          `
           total_price,
           payment_method,
           credits (amount_paid, amount_owed)
-        `)
+        `
+        )
         .eq("business_id", profile.business_id)
         .gte("sale_date", prevFromDate.toISOString())
         .lte("sale_date", prevToDate.toISOString());
 
       let prevActualRevenue = 0;
-      prevSalesWithCredits?.forEach(sale => {
+      prevSalesWithCredits?.forEach((sale) => {
         const totalPrice = Number(sale.total_price) || 0;
-        if (sale.payment_method === 'credit' && sale.credits?.[0]) {
+        if (sale.payment_method === "credit" && sale.credits?.[0]) {
           const amountPaid = Number(sale.credits[0].amount_paid) || 0;
           const amountOwed = Number(sale.credits[0].amount_owed) || 0;
-          const paymentPercentage = amountOwed > 0 ? amountPaid / amountOwed : 0;
+          const paymentPercentage =
+            amountOwed > 0 ? amountPaid / amountOwed : 0;
           prevActualRevenue += totalPrice * paymentPercentage;
-        } else if (sale.payment_method !== 'credit') {
+        } else if (sale.payment_method !== "credit") {
           prevActualRevenue += totalPrice;
         }
       });
@@ -225,9 +235,14 @@ const Dashboard = () => {
         salesData?.reduce((acc, sale) => {
           const date = format(new Date(sale.sale_date), "yyyy-MM-dd");
           if (!acc[date]) {
-            acc[date] = { sales: 0, profit: 0, actualSales: 0, actualProfit: 0 };
+            acc[date] = {
+              sales: 0,
+              profit: 0,
+              actualSales: 0,
+              actualProfit: 0,
+            };
           }
-          
+
           const saleAmount = Number(sale.total_price);
           const buyingPrice = Number(sale.products?.buying_price) || 0;
           const sellingPrice = Number(sale.selling_price) || 0;
@@ -239,20 +254,22 @@ const Dashboard = () => {
           acc[date].profit += saleProfit;
 
           // Calculate actual metrics based on payment percentage
-          if (sale.payment_method === 'credit' && sale.credits?.[0]) {
+          if (sale.payment_method === "credit" && sale.credits?.[0]) {
             const amountPaid = Number(sale.credits[0].amount_paid) || 0;
             const amountOwed = Number(sale.credits[0].amount_owed) || 0;
-            const paymentPercentage = amountOwed > 0 ? amountPaid / amountOwed : 0;
-            
+            const paymentPercentage =
+              amountOwed > 0 ? amountPaid / amountOwed : 0;
+
             acc[date].actualSales += saleAmount * paymentPercentage;
             acc[date].actualProfit += saleProfit * paymentPercentage;
-          } else if (sale.payment_method !== 'credit') {
+          } else if (sale.payment_method !== "credit") {
             acc[date].actualSales += saleAmount;
             acc[date].actualProfit += saleProfit;
           }
 
           return acc;
-        }, {} as Record<string, { sales: number; profit: number; actualSales: number; actualProfit: number }>) || {};
+        }, {} as Record<string, { sales: number; profit: number; actualSales: number; actualProfit: number }>) ||
+        {};
 
       const salesChart = Object.entries(salesByDate)
         .map(([date, data]) => ({
@@ -574,7 +591,8 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle>Revenue & Profit Over Time</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Solid lines show actual revenue/profit, dotted lines show total including pending
+              Solid lines show actual revenue/profit, dotted lines show total
+              including pending
             </p>
           </CardHeader>
           <CardContent>
@@ -599,9 +617,13 @@ const Dashboard = () => {
                     }}
                     formatter={(value: any, name: string) => [
                       formatCurrency(Number(value)),
-                      name === "actualSales" ? "Actual Revenue" : 
-                      name === "actualProfit" ? "Actual Profit" :
-                      name === "sales" ? "Total Sales" : "Total Profit",
+                      name === "actualSales"
+                        ? "Actual Revenue"
+                        : name === "actualProfit"
+                        ? "Actual Profit"
+                        : name === "sales"
+                        ? "Total Sales"
+                        : "Total Profit",
                     ]}
                   />
                   <Line
