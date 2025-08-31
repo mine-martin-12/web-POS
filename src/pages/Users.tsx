@@ -16,10 +16,12 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { Search, Plus, Edit, Trash2 } from 'lucide-react';
 
 const Users: React.FC = () => {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -163,6 +165,8 @@ const Users: React.FC = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => handleDeleteUser(user)}
+                              disabled={user.id === currentUser?.id}
+                              title={user.id === currentUser?.id ? "Cannot delete your own account" : "Delete user"}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

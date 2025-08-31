@@ -33,24 +33,52 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
     setIsLoading(true);
 
     try {
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        toast({
+          title: "Invalid Email",
+          description: "Please enter a valid email address",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
+        // Handle specific error cases
+        if (error.message.includes('rate limit')) {
+          toast({
+            title: "Too Many Requests",
+            description: "Please wait a moment before requesting another reset link.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes('not found')) {
+          toast({
+            title: "Email Not Found",
+            description: "No account found with this email address.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
       } else {
         setIsEmailSent(true);
         toast({
-          title: "Email Sent",
-          description: "Please check your email for the password reset link.",
+          title: "Reset Link Sent",
+          description: "Please check your email for the password reset link. The link will expire in 24 hours.",
+          duration: 5000,
         });
       }
     } catch (error: any) {
+      console.error('Reset password error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",

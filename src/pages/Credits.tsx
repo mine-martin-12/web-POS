@@ -99,7 +99,7 @@ const Credits: React.FC = () => {
 
       toast({
         title: 'Payment Recorded',
-        description: `Payment of $${amount.toFixed(2)} has been recorded successfully`,
+        description: `Payment of ${formatCurrency(amount)} has been recorded successfully`,
       });
 
       setIsPaymentDialogOpen(false);
@@ -222,7 +222,12 @@ const Credits: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "KES",
+    }).format(amount);
+  };
 
   const totalOutstanding = credits.reduce((sum, credit) => 
     sum + (credit.amount_owed - credit.amount_paid), 0

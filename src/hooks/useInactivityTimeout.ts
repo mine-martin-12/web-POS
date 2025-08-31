@@ -8,8 +8,8 @@ interface UseInactivityTimeoutProps {
 }
 
 export const useInactivityTimeout = ({ 
-  timeout = 30 * 60 * 1000, // 30 minutes default
-  warningTime = 5 * 60 * 1000 // 5 minutes warning default
+  timeout = 5 * 60 * 1000, // 5 minutes default
+  warningTime = 2.5 * 60 * 1000 // 2.5 minutes warning default
 }: UseInactivityTimeoutProps = {}) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
@@ -18,15 +18,17 @@ export const useInactivityTimeout = ({
   const lastActivityRef = useRef<number>(Date.now());
 
   const showWarning = useCallback(() => {
+    console.log('🚨 Inactivity warning shown');
     toast({
       title: "Session Expiring Soon",
-      description: "You will be logged out in 3 minutes due to inactivity. Click anywhere to stay logged in.",
+      description: "You will be logged out in 2.5 minutes due to inactivity. Click anywhere to stay logged in.",
       variant: "destructive",
-      duration: 10000, // Show for 10 seconds
+      duration: 30000, // Show for 30 seconds
     });
   }, [toast]);
 
   const handleLogout = useCallback(async () => {
+    console.log('🚪 Auto logout due to inactivity');
     await signOut();
     toast({
       title: "Logged Out",
@@ -37,6 +39,7 @@ export const useInactivityTimeout = ({
 
   const resetTimeout = useCallback(() => {
     lastActivityRef.current = Date.now();
+    console.log('⏰ Resetting inactivity timeout');
     
     // Clear existing timeouts
     if (timeoutRef.current) {
@@ -57,6 +60,8 @@ export const useInactivityTimeout = ({
       timeoutRef.current = setTimeout(() => {
         handleLogout();
       }, timeout);
+      
+      console.log(`⏲️ Timeouts set: warning in ${(timeout - warningTime) / 1000}s, logout in ${timeout / 1000}s`);
     }
   }, [user, timeout, warningTime, showWarning, handleLogout]);
 
@@ -76,10 +81,9 @@ export const useInactivityTimeout = ({
       return;
     }
 
-    // Activity events to monitor
+    // Activity events to monitor - reduced sensitivity
     const events = [
       'mousedown',
-      'mousemove',
       'keypress',
       'scroll',
       'touchstart',

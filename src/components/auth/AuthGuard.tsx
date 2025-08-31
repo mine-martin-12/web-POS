@@ -8,7 +8,7 @@ interface AuthGuardProps {
 }
 
 const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
-  const { user, isLoading } = useAuth();
+  const { user, profile, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -20,6 +20,11 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
         </div>
       </div>
     );
+  }
+
+  // Check if user exists but doesn't have a valid profile
+  if (user && !profile) {
+    return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   if (!user) {

@@ -19,20 +19,39 @@ const ResetPassword = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Redirect if already authenticated and not in reset flow
+  // Check for valid reset token and redirect appropriately
   useEffect(() => {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const accessToken = hashParams.get('access_token');
     const type = hashParams.get('type');
+    const errorCode = hashParams.get('error_code');
+    const errorDescription = hashParams.get('error_description');
     
+    // Handle errors in the URL
+    if (errorCode) {
+      toast({
+        title: "Reset Link Error",
+        description: errorDescription || "The reset link is invalid or has expired.",
+        variant: "destructive"
+      });
+      navigate('/auth');
+      return;
+    }
+    
+    // Check for valid recovery token
     if (!accessToken || type !== 'recovery') {
       if (user) {
         navigate('/dashboard');
       } else {
+        toast({
+          title: "Invalid Reset Link",
+          description: "This reset link is invalid or has expired. Please request a new one.",
+          variant: "destructive"
+        });
         navigate('/auth');
       }
     }
-  }, [user, navigate]);
+  }, [user, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,9 +92,12 @@ const ResetPassword = () => {
         });
       } else {
         toast({
-          title: "Success",
-          description: "Your password has been updated successfully!"
+          title: "Password Updated",
+          description: "Your password has been updated successfully! You are now logged in.",
+          duration: 5000,
         });
+        // Clear the URL hash to remove reset tokens
+        window.location.hash = '';
         navigate('/dashboard');
       }
     } catch (error: any) {

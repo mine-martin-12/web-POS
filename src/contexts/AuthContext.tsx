@@ -114,32 +114,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      setIsLoading(true);
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password
+        password,
       });
 
       if (error) {
         toast({
           title: "Error",
           description: error.message,
-          variant: "destructive"
+          variant: "destructive",
         });
-      } else {
+        return { error };
+      }
+
+      if (data.user) {
+        // Check if user has a valid profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', data.user.id)
+          .single();
+
+        if (profileError || !profileData) {
+          // User exists in auth but not in profiles - sign them out immediately
+          await supabase.auth.signOut();
+          toast({
+            title: "Access Denied",
+            description: "Your account has been disabled. Please contact your administrator.",
+            variant: "destructive",
+          });
+          return { error: new Error('Account disabled') };
+        }
+
         toast({
           title: "Success",
-          description: "Signed in successfully!"
+          description: "Signed in successfully!",
         });
       }
 
-      return { error };
+      return { error: null };
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive"
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
       });
       return { error };
+    } finally {
+      setIsLoading(false);
     }
   };
 
