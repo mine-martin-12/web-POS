@@ -44,9 +44,14 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
         return;
       }
 
+      const redirectUrl = `${window.location.origin}/reset-password`;
+      console.log('ForgotPasswordModal - Sending reset email with redirect:', redirectUrl);
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: redirectUrl,
       });
+      
+      console.log('ForgotPasswordModal - Reset email response:', { error });
 
       if (error) {
         // Handle specific error cases
