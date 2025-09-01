@@ -12,28 +12,48 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('Admin delete user function called')
+    
     const { userId } = await req.json()
+    console.log('Deleting user:', userId)
 
     if (!userId) {
+      console.error('No user ID provided')
       return new Response(
         JSON.stringify({ error: 'User ID is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    // Validate environment variables
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+      console.error('Missing environment variables:', { supabaseUrl: !!supabaseUrl, serviceRoleKey: !!serviceRoleKey, anonKey: !!anonKey })
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Create Supabase client with service role key for admin operations
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
 
     // Create regular client to get current user
-    const authHeader = req.headers.get('Authorization')!
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    )
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      console.error('No authorization header provided')
+      return new Response(
+        JSON.stringify({ error: 'Authorization header required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const supabase = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } }
+    })
 
     // Get current authenticated user
     const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser()
@@ -102,7 +122,8 @@ Deno.serve(async (req) => {
     }
 
     // Delete the user's profile first (this will cascade and clean up related data)
-    const { error: deleteProfileError } = await supabase
+    console.log('Deleting profile for user:', userId)
+    const { error: deleteProfileError } = await supabaseAdmin
       .from('profiles')
       .delete()
       .eq('user_id', userId)
@@ -110,21 +131,27 @@ Deno.serve(async (req) => {
     if (deleteProfileError) {
       console.error('Error deleting profile:', deleteProfileError)
       return new Response(
-        JSON.stringify({ error: 'Failed to delete user profile' }),
+        JSON.stringify({ error: 'Failed to delete user profile', details: deleteProfileError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+    console.log('Profile deleted successfully')
 
     // Delete the user from auth using admin client
+    console.log('Deleting auth user:', userId)
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
     if (deleteAuthError) {
       console.error('Error deleting auth user:', deleteAuthError)
       return new Response(
-        JSON.stringify({ error: 'Failed to delete user authentication' }),
+        JSON.stringify({ error: 'Failed to delete user authentication', details: deleteAuthError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+    console.log('Auth user deleted successfully')
+
+    // Add a small delay to ensure propagation
+    await new Promise(resolve => setTimeout(resolve, 1000))
 
     console.log('Successfully deleted user:', userId)
     

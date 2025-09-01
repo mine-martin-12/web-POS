@@ -27,8 +27,11 @@ const ResetPassword = () => {
     const errorCode = hashParams.get('error_code');
     const errorDescription = hashParams.get('error_description');
     
+    console.log('ResetPassword - URL params:', { accessToken: !!accessToken, type, errorCode, errorDescription });
+    
     // Handle errors in the URL
     if (errorCode) {
+      console.log('ResetPassword - Error in URL, redirecting to auth');
       toast({
         title: "Reset Link Error",
         description: errorDescription || "The reset link is invalid or has expired.",
@@ -38,19 +41,27 @@ const ResetPassword = () => {
       return;
     }
     
-    // Check for valid recovery token
-    if (!accessToken || type !== 'recovery') {
-      if (user) {
-        navigate('/dashboard');
-      } else {
-        toast({
-          title: "Invalid Reset Link",
-          description: "This reset link is invalid or has expired. Please request a new one.",
-          variant: "destructive"
-        });
-        navigate('/auth');
-      }
+    // If user is already authenticated and has no reset tokens, redirect to dashboard
+    if (user && (!accessToken || type !== 'recovery')) {
+      console.log('ResetPassword - User authenticated without reset tokens, redirecting to dashboard');
+      navigate('/dashboard');
+      return;
     }
+    
+    // If no user and no valid reset tokens, redirect to auth
+    if (!user && (!accessToken || type !== 'recovery')) {
+      console.log('ResetPassword - No user and no valid reset tokens, redirecting to auth');
+      toast({
+        title: "Invalid Reset Link",
+        description: "This reset link is invalid or has expired. Please request a new one.",
+        variant: "destructive"
+      });
+      navigate('/auth');
+      return;
+    }
+    
+    // If we reach here, we have valid reset tokens - stay on the page
+    console.log('ResetPassword - Valid reset tokens found, showing reset form');
   }, [user, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
