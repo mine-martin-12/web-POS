@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import PasswordStrengthIndicator, { validatePassword } from '@/components/auth/PasswordStrengthIndicator';
 
 const ResetPassword = () => {
-  const { user } = useAuth();
+  const { user, isRecoveryMode } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +27,7 @@ const ResetPassword = () => {
     const errorCode = hashParams.get('error_code');
     const errorDescription = hashParams.get('error_description');
     
-    console.log('ResetPassword - URL params:', { accessToken: !!accessToken, type, errorCode, errorDescription });
+    console.log('ResetPassword - URL params:', { accessToken: !!accessToken, type, errorCode, errorDescription, isRecoveryMode, hasUser: !!user });
     
     // Handle errors in the URL
     if (errorCode) {
@@ -41,16 +41,9 @@ const ResetPassword = () => {
       return;
     }
     
-    // If user is already authenticated and has no reset tokens, redirect to dashboard
-    if (user && (!accessToken || type !== 'recovery')) {
-      console.log('ResetPassword - User authenticated without reset tokens, redirecting to dashboard');
-      navigate('/dashboard');
-      return;
-    }
-    
-    // If no user and no valid reset tokens, redirect to auth
-    if (!user && (!accessToken || type !== 'recovery')) {
-      console.log('ResetPassword - No user and no valid reset tokens, redirecting to auth');
+    // If we're not in recovery mode and have no valid tokens, redirect to auth
+    if (!isRecoveryMode && (!accessToken || type !== 'recovery')) {
+      console.log('ResetPassword - No recovery mode and no valid tokens, redirecting to auth');
       toast({
         title: "Invalid Reset Link",
         description: "This reset link is invalid or has expired. Please request a new one.",
@@ -60,9 +53,16 @@ const ResetPassword = () => {
       return;
     }
     
-    // If we reach here, we have valid reset tokens - stay on the page
-    console.log('ResetPassword - Valid reset tokens found, showing reset form');
-  }, [user, navigate, toast]);
+    // If user is authenticated but not in recovery mode, redirect to dashboard
+    if (user && !isRecoveryMode) {
+      console.log('ResetPassword - User authenticated but not in recovery mode, redirecting to dashboard');
+      navigate('/dashboard');
+      return;
+    }
+    
+    // If we reach here, we're in recovery mode - stay on the page
+    console.log('ResetPassword - In recovery mode, showing reset form');
+  }, [user, isRecoveryMode, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,9 +107,10 @@ const ResetPassword = () => {
           description: "Your password has been updated successfully! You are now logged in.",
           duration: 5000,
         });
-        // Clear the URL hash to remove reset tokens
+        // Clear the URL hash to remove reset tokens and refresh auth state
         window.location.hash = '';
-        navigate('/dashboard');
+        // Force a page reload to clear recovery mode and establish normal session
+        window.location.href = '/dashboard';
       }
     } catch (error: any) {
       toast({

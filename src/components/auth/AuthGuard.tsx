@@ -8,7 +8,7 @@ interface AuthGuardProps {
 }
 
 const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
-  const { user, profile, isLoading } = useAuth();
+  const { user, profile, isLoading, isRecoveryMode } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -22,12 +22,22 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     );
   }
 
-  // Check if user exists but doesn't have a valid profile
-  if (user && !profile) {
+  // Allow access to reset password page during recovery mode
+  if (isRecoveryMode && location.pathname === '/reset-password') {
+    return <>{children}</>;
+  }
+
+  // Block access to protected routes during recovery mode
+  if (isRecoveryMode && location.pathname !== '/reset-password') {
+    return <Navigate to="/reset-password" replace />;
+  }
+
+  // Check if user exists but doesn't have a valid profile (only for non-recovery sessions)
+  if (user && !profile && !isRecoveryMode) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  if (!user) {
+  if (!user && !isRecoveryMode) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 

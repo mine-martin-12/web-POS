@@ -22,6 +22,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   isLoading: boolean;
+  isRecoveryMode: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, firstName: string, lastName: string, businessName: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -43,7 +44,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
   const { toast } = useToast();
+
+  // Helper function to check if current session is a recovery session
+  const checkRecoveryMode = () => {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get('access_token');
+    const type = hashParams.get('type');
+    return !!(accessToken && type === 'recovery');
+  };
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -76,18 +86,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('AuthContext - Auth state change:', { event, hasSession: !!session, hasUser: !!session?.user });
+        
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (session?.user) {
-          // Defer profile fetching to avoid auth state callback issues
+        // Check if we're in recovery mode
+        const inRecoveryMode = checkRecoveryMode();
+        setIsRecoveryMode(inRecoveryMode);
+        console.log('AuthContext - Recovery mode:', inRecoveryMode);
+        
+        if (session?.user && !inRecoveryMode) {
+          // Only fetch profile for normal sessions, not recovery sessions
           setTimeout(async () => {
             const userProfile = await fetchProfile(session.user.id);
             setProfile(userProfile);
             setIsLoading(false);
           }, 0);
         } else {
-          setProfile(null);
+          // Don't set profile during recovery mode
+          if (!inRecoveryMode) {
+            setProfile(null);
+          }
           setIsLoading(false);
         }
       }
@@ -95,10 +115,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('AuthContext - Initial session check:', { hasSession: !!session, hasUser: !!session?.user });
+      
       setSession(session);
       setUser(session?.user ?? null);
       
-      if (session?.user) {
+      // Check if we're in recovery mode
+      const inRecoveryMode = checkRecoveryMode();
+      setIsRecoveryMode(inRecoveryMode);
+      console.log('AuthContext - Initial recovery mode:', inRecoveryMode);
+      
+      if (session?.user && !inRecoveryMode) {
         setTimeout(async () => {
           const userProfile = await fetchProfile(session.user.id);
           setProfile(userProfile);
@@ -292,6 +319,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     profile,
     isLoading,
+    isRecoveryMode,
     signIn,
     signUp,
     signOut,
