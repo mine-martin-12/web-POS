@@ -22,10 +22,11 @@ const ResetPassword = () => {
   // Check for valid reset token and redirect appropriately
   useEffect(() => {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-    const type = hashParams.get('type');
-    const errorCode = hashParams.get('error_code');
-    const errorDescription = hashParams.get('error_description');
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessToken = hashParams.get('access_token') || urlParams.get('access_token');
+    const type = hashParams.get('type') || urlParams.get('type');
+    const errorCode = hashParams.get('error_code') || urlParams.get('error_code');
+    const errorDescription = hashParams.get('error_description') || urlParams.get('error_description');
     
     console.log('ResetPassword - URL params:', { accessToken: !!accessToken, type, errorCode, errorDescription, isRecoveryMode, hasUser: !!user });
     
@@ -41,9 +42,20 @@ const ResetPassword = () => {
       return;
     }
     
-    // If we're not in recovery mode and have no valid tokens, redirect to auth
-    if (!isRecoveryMode && (!accessToken || type !== 'recovery')) {
-      console.log('ResetPassword - No recovery mode and no valid tokens, redirecting to auth');
+    // Always stay on reset password page if we have recovery tokens OR are in recovery mode
+    if (accessToken && type === 'recovery') {
+      console.log('ResetPassword - Valid recovery tokens found, staying on reset page');
+      return;
+    }
+    
+    if (isRecoveryMode) {
+      console.log('ResetPassword - In recovery mode, staying on reset page');
+      return;
+    }
+    
+    // Only redirect if we have no recovery tokens AND not in recovery mode
+    if (!accessToken && !isRecoveryMode) {
+      console.log('ResetPassword - No recovery tokens and not in recovery mode, redirecting to auth');
       toast({
         title: "Invalid Reset Link",
         description: "This reset link is invalid or has expired. Please request a new one.",
@@ -52,17 +64,7 @@ const ResetPassword = () => {
       navigate('/auth');
       return;
     }
-    
-    // If user is authenticated but not in recovery mode, redirect to dashboard
-    if (user && !isRecoveryMode) {
-      console.log('ResetPassword - User authenticated but not in recovery mode, redirecting to dashboard');
-      navigate('/dashboard');
-      return;
-    }
-    
-    // If we reach here, we're in recovery mode - stay on the page
-    console.log('ResetPassword - In recovery mode, showing reset form');
-  }, [user, isRecoveryMode, navigate, toast]);
+  }, [isRecoveryMode, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

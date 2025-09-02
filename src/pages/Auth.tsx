@@ -11,7 +11,7 @@ import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicat
 import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal';
 
 const Auth = () => {
-  const { user, signIn, signUp } = useAuth();
+  const { user, signIn, signUp, isRecoveryMode } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -27,8 +27,13 @@ const Auth = () => {
   const [lastName, setLastName] = useState('');
   const [businessName, setBusinessName] = useState('');
 
-  // Redirect if already authenticated
-  if (user) {
+  // Redirect to reset password if in recovery mode
+  if (isRecoveryMode) {
+    return <Navigate to="/reset-password" replace />;
+  }
+
+  // Redirect if already authenticated (but not in recovery mode)
+  if (user && !isRecoveryMode) {
     return <Navigate to="/dashboard" replace />;
   }
 

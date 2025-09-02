@@ -50,9 +50,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Helper function to check if current session is a recovery session
   const checkRecoveryMode = () => {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-    const type = hashParams.get('type');
-    return !!(accessToken && type === 'recovery');
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessToken = hashParams.get('access_token') || urlParams.get('access_token');
+    const type = hashParams.get('type') || urlParams.get('type');
+    const refreshToken = hashParams.get('refresh_token') || urlParams.get('refresh_token');
+    
+    // More robust recovery detection
+    return !!(accessToken && type === 'recovery') || 
+           !!(refreshToken && type === 'recovery') ||
+           window.location.pathname === '/reset-password';
   };
 
   const fetchProfile = async (userId: string) => {
@@ -86,15 +92,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('AuthContext - Auth state change:', { event, hasSession: !!session, hasUser: !!session?.user });
+        console.log('AuthContext - Auth state change:', { event, hasSession: !!session, hasUser: !!session?.user, path: window.location.pathname });
+        
+        // Check if we're in recovery mode FIRST
+        const inRecoveryMode = checkRecoveryMode();
+        console.log('AuthContext - Recovery mode:', inRecoveryMode);
+        
+        // Set recovery mode immediately to prevent race conditions
+        setIsRecoveryMode(inRecoveryMode);
         
         setSession(session);
         setUser(session?.user ?? null);
-        
-        // Check if we're in recovery mode
-        const inRecoveryMode = checkRecoveryMode();
-        setIsRecoveryMode(inRecoveryMode);
-        console.log('AuthContext - Recovery mode:', inRecoveryMode);
         
         if (session?.user && !inRecoveryMode) {
           // Only fetch profile for normal sessions, not recovery sessions
