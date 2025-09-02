@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,8 +36,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Edit, Trash2, Download, Printer } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Download, Printer, CalendarIcon } from "lucide-react";
 import { Receipt } from "@/components/receipt/Receipt";
 import { printReceipt } from "@/utils/printUtils";
 import { createRoot } from 'react-dom/client';
@@ -45,14 +49,20 @@ import * as z from "zod";
 
 const saleSchema = z.object({
   product_id: z.string().min(1, "Product is required"),
-  quantity: z.number().min(1, "Quantity must be at least 1"),
-  selling_price: z.number().min(0, "Selling price must be non-negative"),
+  quantity: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? parseInt(val) : val;
+    return isNaN(num) ? 1 : num;
+  }).refine((val) => val >= 1, "Quantity must be at least 1"),
+  selling_price: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    return isNaN(num) ? 0 : num;
+  }).refine((val) => val >= 0, "Selling price must be non-negative"),
   payment_method: z.enum(["cash", "mpesa", "bank", "credit"], {
     required_error: "Payment method is required",
   }),
   description: z.string().optional(),
   customer_name: z.string().optional(),
-  due_date: z.string().optional(),
+  due_date: z.date().optional(),
 }).refine((data) => {
   if (data.payment_method === "credit") {
     return data.customer_name && data.due_date;
@@ -245,7 +255,7 @@ const Sales: React.FC = () => {
           sale_id: saleId,
           customer_name: data.customer_name,
           amount_owed: data.quantity * data.selling_price,
-          due_date: data.due_date,
+          due_date: data.due_date.toISOString(),
         };
 
         const { error: creditError } = await supabase
@@ -715,14 +725,14 @@ const Sales: React.FC = () => {
                   <FormItem>
                     <FormLabel>Quantity</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseInt(e.target.value) || 1)
-                        }
-                      />
+                       <Input
+                         type="number"
+                         min="1"
+                         placeholder="Enter quantity"
+                         {...field}
+                         value={field.value || ''}
+                         onChange={(e) => field.onChange(e.target.value === '' ? '' : parseInt(e.target.value))}
+                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -735,15 +745,15 @@ const Sales: React.FC = () => {
                   <FormItem>
                     <FormLabel>Selling Price</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseFloat(e.target.value) || 0)
-                        }
-                      />
+                       <Input
+                         type="number"
+                         step="0.01"
+                         min="0"
+                         placeholder="0.00"
+                         {...field}
+                         value={field.value || ''}
+                         onChange={(e) => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -790,19 +800,46 @@ const Sales: React.FC = () => {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="due_date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Due Date</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="date" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                   <FormField
+                     control={form.control}
+                     name="due_date"
+                     render={({ field }) => (
+                       <FormItem className="flex flex-col">
+                         <FormLabel>Due Date</FormLabel>
+                         <Popover>
+                           <PopoverTrigger asChild>
+                             <FormControl>
+                               <Button
+                                 variant="outline"
+                                 className={cn(
+                                   "w-full pl-3 text-left font-normal",
+                                   !field.value && "text-muted-foreground"
+                                 )}
+                               >
+                                 {field.value ? (
+                                   format(field.value, "PPP")
+                                 ) : (
+                                   <span>Pick a date</span>
+                                 )}
+                                 <CalendarIcon className="ml-auto h-5 w-5 opacity-50" />
+                               </Button>
+                             </FormControl>
+                           </PopoverTrigger>
+                           <PopoverContent className="w-auto p-0" align="start">
+                             <Calendar
+                               mode="single"
+                               selected={field.value}
+                               onSelect={field.onChange}
+                               disabled={(date) => date < new Date()}
+                               initialFocus
+                               className="p-3 pointer-events-auto"
+                             />
+                           </PopoverContent>
+                         </Popover>
+                         <FormMessage />
+                       </FormItem>
+                     )}
+                   />
                 </>
               )}
               <FormField

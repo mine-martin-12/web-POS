@@ -50,8 +50,14 @@ const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().min(1, "Description is required"),
   size: z.string().optional(),
-  stock_quantity: z.number().min(0, "Stock quantity must be non-negative"),
-  buying_price: z.number().min(0, "Price per unit must be non-negative"),
+  stock_quantity: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? parseInt(val) : val;
+    return isNaN(num) ? 0 : num;
+  }).refine((val) => val >= 0, "Stock quantity must be non-negative"),
+  buying_price: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    return isNaN(num) ? 0 : num;
+  }).refine((val) => val >= 0, "Price per unit must be non-negative"),
 });
 
 const stockSchema = z.object({
@@ -521,13 +527,13 @@ const Products: React.FC = () => {
                   <FormItem>
                     <FormLabel>Stock Quantity</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseInt(e.target.value) || 0)
-                        }
-                      />
+                       <Input
+                         type="number"
+                         placeholder="Enter stock quantity"
+                         {...field}
+                         value={field.value || ''}
+                         onChange={(e) => field.onChange(e.target.value === '' ? '' : parseInt(e.target.value))}
+                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -540,14 +546,14 @@ const Products: React.FC = () => {
                   <FormItem>
                     <FormLabel>Price per Unit</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseFloat(e.target.value) || 0)
-                        }
-                      />
+                       <Input
+                         type="number"
+                         step="0.01"
+                         placeholder="Enter price per unit"
+                         {...field}
+                         value={field.value || ''}
+                         onChange={(e) => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
