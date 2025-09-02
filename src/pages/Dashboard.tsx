@@ -30,6 +30,7 @@ import {
   Bar,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { GrowthIndicator } from "@/components/ui/growth-indicator";
 
 interface DashboardMetrics {
   totalSalesAmount: number;
@@ -42,7 +43,14 @@ interface DashboardMetrics {
   actualProfit: number;
   pendingProfit: number;
   averageSale: number;
-  salesGrowth: number;
+  actualRevenueGrowth: number;
+  pendingRevenueGrowth: number;
+  totalSalesCountGrowth: number;
+  totalProfitGrowth: number;
+  actualProfitGrowth: number;
+  pendingProfitGrowth: number;
+  averageSaleGrowth: number;
+  comparisonPeriodLabel: string;
   topProducts: Array<{ name: string; totalSales: number; quantity: number }>;
   bottomProducts: Array<{ name: string; totalSales: number; quantity: number }>;
   salesChart: Array<{ date: string; sales: number; profit: number; actualSales: number; actualProfit: number }>;
@@ -171,34 +179,81 @@ const Dashboard = () => {
         .gte("sale_date", prevFromDate.toISOString())
         .lte("sale_date", prevToDate.toISOString());
 
-      // Calculate growth based on actual revenue with credit payment tracking
+      // Calculate growth based on previous period metrics
       const { data: prevSalesWithCredits } = await supabase
         .from("sales")
         .select(`
           total_price,
+          quantity,
+          selling_price,
           payment_method,
+          products (buying_price),
           credits (amount_paid, amount_owed)
         `)
         .eq("business_id", profile.business_id)
         .gte("sale_date", prevFromDate.toISOString())
         .lte("sale_date", prevToDate.toISOString());
 
+      // Calculate previous period metrics
+      let prevTotalSalesAmount = 0;
       let prevActualRevenue = 0;
+      let prevPendingRevenue = 0;
+      let prevTotalProfit = 0;
+      let prevActualProfit = 0;
+      let prevPendingProfit = 0;
+      const prevTotalSalesCount = prevSalesWithCredits?.length || 0;
+
       prevSalesWithCredits?.forEach(sale => {
         const totalPrice = Number(sale.total_price) || 0;
+        const buyingPrice = Number(sale.products?.buying_price) || 0;
+        const sellingPrice = Number(sale.selling_price) || 0;
+        const quantity = Number(sale.quantity) || 0;
+        const saleProfit = (sellingPrice - buyingPrice) * quantity;
+
+        prevTotalSalesAmount += totalPrice;
+        prevTotalProfit += saleProfit;
+
         if (sale.payment_method === 'credit' && sale.credits?.[0]) {
           const amountPaid = Number(sale.credits[0].amount_paid) || 0;
           const amountOwed = Number(sale.credits[0].amount_owed) || 0;
           const paymentPercentage = amountOwed > 0 ? amountPaid / amountOwed : 0;
-          prevActualRevenue += totalPrice * paymentPercentage;
+
+          const paidRevenue = totalPrice * paymentPercentage;
+          const unpaidRevenue = totalPrice * (1 - paymentPercentage);
+          const paidProfit = saleProfit * paymentPercentage;
+          const unpaidProfit = saleProfit * (1 - paymentPercentage);
+
+          prevActualRevenue += paidRevenue;
+          prevPendingRevenue += unpaidRevenue;
+          prevActualProfit += paidProfit;
+          prevPendingProfit += unpaidProfit;
         } else if (sale.payment_method !== 'credit') {
           prevActualRevenue += totalPrice;
+          prevActualProfit += saleProfit;
+        } else {
+          prevPendingRevenue += totalPrice;
+          prevPendingProfit += saleProfit;
         }
       });
-      const salesGrowth =
-        prevActualRevenue > 0
-          ? ((actualRevenue - prevActualRevenue) / prevActualRevenue) * 100
-          : 0;
+
+      const prevAverageSale = prevTotalSalesCount > 0 ? prevTotalSalesAmount / prevTotalSalesCount : 0;
+
+      // Calculate growth rates
+      const calculateGrowth = (current: number, previous: number) => {
+        if (previous === 0) return current > 0 ? 100 : 0;
+        return ((current - previous) / previous) * 100;
+      };
+
+      const actualRevenueGrowth = calculateGrowth(actualRevenue, prevActualRevenue);
+      const pendingRevenueGrowth = calculateGrowth(pendingRevenue, prevPendingRevenue);
+      const totalSalesCountGrowth = calculateGrowth(totalSalesCount, prevTotalSalesCount);
+      const totalProfitGrowth = calculateGrowth(totalProfit, prevTotalProfit);
+      const actualProfitGrowth = calculateGrowth(actualProfit, prevActualProfit);
+      const pendingProfitGrowth = calculateGrowth(pendingProfit, prevPendingProfit);
+      const averageSaleGrowth = calculateGrowth(averageSale, prevAverageSale);
+
+      // Generate comparison period label
+      const comparisonPeriodLabel = `vs previous ${periodLength} day${periodLength !== 1 ? 's' : ''}`;
 
       // Top and bottom products
       const productSales =
@@ -274,7 +329,14 @@ const Dashboard = () => {
         actualProfit,
         pendingProfit,
         averageSale,
-        salesGrowth,
+        actualRevenueGrowth,
+        pendingRevenueGrowth,
+        totalSalesCountGrowth,
+        totalProfitGrowth,
+        actualProfitGrowth,
+        pendingProfitGrowth,
+        averageSaleGrowth,
+        comparisonPeriodLabel,
         topProducts,
         bottomProducts,
         salesChart,
@@ -481,6 +543,12 @@ const Dashboard = () => {
             <p className="text-xs text-muted-foreground">
               From {metrics?.paidSalesCount || 0} paid sales
             </p>
+            {metrics && (
+              <GrowthIndicator 
+                growth={metrics.actualRevenueGrowth} 
+                comparisonLabel={metrics.comparisonPeriodLabel}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -498,6 +566,12 @@ const Dashboard = () => {
             <p className="text-xs text-muted-foreground">
               From {metrics?.creditSalesCount || 0} credit sales
             </p>
+            {metrics && (
+              <GrowthIndicator 
+                growth={metrics.pendingRevenueGrowth} 
+                comparisonLabel={metrics.comparisonPeriodLabel}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -515,6 +589,12 @@ const Dashboard = () => {
             <p className="text-xs text-muted-foreground">
               {metrics?.totalSalesCount || 0} total transactions
             </p>
+            {metrics && (
+              <GrowthIndicator 
+                growth={metrics.totalSalesCountGrowth} 
+                comparisonLabel={metrics.comparisonPeriodLabel}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -530,6 +610,12 @@ const Dashboard = () => {
               {metrics ? formatCurrency(metrics.actualProfit) : "KES 0.00"}
             </div>
             <p className="text-xs text-muted-foreground">Cash flow profit</p>
+            {metrics && (
+              <GrowthIndicator 
+                growth={metrics.actualProfitGrowth} 
+                comparisonLabel={metrics.comparisonPeriodLabel}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -545,6 +631,12 @@ const Dashboard = () => {
               {metrics ? formatCurrency(metrics.pendingProfit) : "KES 0.00"}
             </div>
             <p className="text-xs text-muted-foreground">From credit sales</p>
+            {metrics && (
+              <GrowthIndicator 
+                growth={metrics.pendingProfitGrowth} 
+                comparisonLabel={metrics.comparisonPeriodLabel}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -560,6 +652,12 @@ const Dashboard = () => {
               {metrics ? formatCurrency(metrics.averageSale) : "KES 0.00"}
             </div>
             <p className="text-xs text-muted-foreground">Per transaction</p>
+            {metrics && (
+              <GrowthIndicator 
+                growth={metrics.averageSaleGrowth} 
+                comparisonLabel={metrics.comparisonPeriodLabel}
+              />
+            )}
           </CardContent>
         </Card>
 
