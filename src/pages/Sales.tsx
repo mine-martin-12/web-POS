@@ -37,41 +37,64 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Edit, Trash2, Download, Printer, CalendarIcon } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  Download,
+  Printer,
+  CalendarIcon,
+} from "lucide-react";
 import { Receipt } from "@/components/receipt/Receipt";
 import { printReceipt } from "@/utils/printUtils";
-import { createRoot } from 'react-dom/client';
+import { createRoot } from "react-dom/client";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
-const saleSchema = z.object({
-  product_id: z.string().min(1, "Product is required"),
-  quantity: z.union([z.number(), z.string()]).transform((val) => {
-    const num = typeof val === 'string' ? parseInt(val) : val;
-    return isNaN(num) ? 1 : num;
-  }).refine((val) => val >= 1, "Quantity must be at least 1"),
-  selling_price: z.union([z.number(), z.string()]).transform((val) => {
-    const num = typeof val === 'string' ? parseFloat(val) : val;
-    return isNaN(num) ? 0 : num;
-  }).refine((val) => val >= 0, "Selling price must be non-negative"),
-  payment_method: z.enum(["cash", "mpesa", "bank", "credit"], {
-    required_error: "Payment method is required",
-  }),
-  description: z.string().optional(),
-  customer_name: z.string().optional(),
-  due_date: z.date().optional(),
-}).refine((data) => {
-  if (data.payment_method === "credit") {
-    return data.customer_name && data.due_date;
-  }
-  return true;
-}, {
-  message: "Customer name and due date are required for credit sales",
-  path: ["customer_name"],
-});
+const saleSchema = z
+  .object({
+    product_id: z.string().min(1, "Product is required"),
+    quantity: z
+      .union([z.number(), z.string()])
+      .transform((val) => {
+        const num = typeof val === "string" ? parseInt(val) : val;
+        return isNaN(num) ? 1 : num;
+      })
+      .refine((val) => val >= 1, "Quantity must be at least 1"),
+    selling_price: z
+      .union([z.number(), z.string()])
+      .transform((val) => {
+        const num = typeof val === "string" ? parseFloat(val) : val;
+        return isNaN(num) ? 0 : num;
+      })
+      .refine((val) => val >= 0, "Selling price must be non-negative"),
+    payment_method: z.enum(["cash", "mpesa", "bank", "credit"], {
+      required_error: "Payment method is required",
+    }),
+    description: z.string().optional(),
+    customer_name: z.string().optional(),
+    due_date: z.date().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.payment_method === "credit") {
+        return data.customer_name && data.due_date;
+      }
+      return true;
+    },
+    {
+      message: "Customer name and due date are required for credit sales",
+      path: ["customer_name"],
+    }
+  );
 
 type SaleFormData = z.infer<typeof saleSchema>;
 
@@ -247,7 +270,7 @@ const Sales: React.FC = () => {
         const { data: insertedSale, error } = await supabase
           .from("sales")
           .insert(saleData)
-          .select('id')
+          .select("id")
           .single();
 
         if (error) throw error;
@@ -256,7 +279,12 @@ const Sales: React.FC = () => {
       }
 
       // Handle credit record for credit sales
-      if (data.payment_method === "credit" && data.customer_name && data.due_date && saleId) {
+      if (
+        data.payment_method === "credit" &&
+        data.customer_name &&
+        data.due_date &&
+        saleId
+      ) {
         const creditData = {
           business_id: profile?.business_id,
           sale_id: saleId,
@@ -396,8 +424,14 @@ const Sales: React.FC = () => {
           const credit = (sale as any).credits[0];
           const amountPaid = Number(credit.amount_paid) || 0;
           const amountOwed = Number(credit.amount_owed) || 0;
-          const paymentPercentage = amountOwed > 0 ? (amountPaid / amountOwed) * 100 : 0;
-          profitStatus = paymentPercentage >= 100 ? "Fully Paid" : paymentPercentage > 0 ? `${paymentPercentage.toFixed(0)}% Paid` : "Pending";
+          const paymentPercentage =
+            amountOwed > 0 ? (amountPaid / amountOwed) * 100 : 0;
+          profitStatus =
+            paymentPercentage >= 100
+              ? "Fully Paid"
+              : paymentPercentage > 0
+              ? `${paymentPercentage.toFixed(0)}% Paid`
+              : "Pending";
         } else if (sale.payment_method === "credit") {
           profitStatus = "Pending";
         }
@@ -442,19 +476,19 @@ const Sales: React.FC = () => {
 
   const handlePrintReceipt = () => {
     if (!saleToprint) return;
-    
+
     // Create a temporary div to render the receipt
-    const tempDiv = document.createElement('div');
+    const tempDiv = document.createElement("div");
     const root = createRoot(tempDiv);
-    
+
     // Add product name to sale for receipt
     const saleWithProduct = {
       ...saleToprint,
-      product_name: saleToprint.products?.name || "Unknown Product"
+      product_name: saleToprint.products?.name || "Unknown Product",
     };
-    
+
     root.render(<Receipt sale={saleWithProduct} />);
-    
+
     // Wait for render to complete
     setTimeout(() => {
       printReceipt(tempDiv.innerHTML);
@@ -565,31 +599,46 @@ const Sales: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          {sale.payment_method === "credit" && (sale as any).credits?.[0] ? (() => {
-                            const credit = (sale as any).credits[0];
-                            const amountPaid = Number(credit.amount_paid) || 0;
-                            const amountOwed = Number(credit.amount_owed) || 0;
-                            const paymentPercentage = amountOwed > 0 ? (amountPaid / amountOwed) * 100 : 0;
-                            
-                            return (
-                              <>
-                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                  paymentPercentage >= 100
-                                    ? "bg-success/20 text-success border border-success/30"
-                                    : paymentPercentage > 0
-                                    ? "bg-warning/20 text-warning border border-warning/30"
-                                    : "bg-destructive/20 text-destructive border border-destructive/30"
-                                }`}>
-                                  {paymentPercentage >= 100 ? "Credit" : paymentPercentage > 0 ? `${paymentPercentage.toFixed(0)}% Paid` : "Unpaid Credit"}
-                                </span>
-                                {paymentPercentage < 100 && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {formatCurrency(amountPaid)} / {formatCurrency(amountOwed)}
+                          {sale.payment_method === "credit" &&
+                          (sale as any).credits?.[0] ? (
+                            (() => {
+                              const credit = (sale as any).credits[0];
+                              const amountPaid =
+                                Number(credit.amount_paid) || 0;
+                              const amountOwed =
+                                Number(credit.amount_owed) || 0;
+                              const paymentPercentage =
+                                amountOwed > 0
+                                  ? (amountPaid / amountOwed) * 100
+                                  : 0;
+
+                              return (
+                                <>
+                                  <span
+                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                      paymentPercentage >= 100
+                                        ? "bg-success/20 text-success border border-success/30"
+                                        : paymentPercentage > 0
+                                        ? "bg-warning/20 text-warning border border-warning/30"
+                                        : "bg-destructive/20 text-destructive border border-destructive/30"
+                                    }`}
+                                  >
+                                    {paymentPercentage >= 100
+                                      ? "Paid Credit"
+                                      : paymentPercentage > 0
+                                      ? `${paymentPercentage.toFixed(0)}% Paid`
+                                      : "Unpaid Credit"}
                                   </span>
-                                )}
-                              </>
-                            );
-                          })() : sale.payment_method === "credit" ? (
+                                  {paymentPercentage < 100 && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {formatCurrency(amountPaid)} /{" "}
+                                      {formatCurrency(amountOwed)}
+                                    </span>
+                                  )}
+                                </>
+                              );
+                            })()
+                          ) : sale.payment_method === "credit" ? (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">
                               Credit Sale
                             </span>
@@ -611,48 +660,60 @@ const Sales: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          {sale.payment_method === "credit" && (sale as any).credits?.[0] ? (() => {
-                            const credit = (sale as any).credits[0];
-                            const amountPaid = Number(credit.amount_paid) || 0;
-                            const amountOwed = Number(credit.amount_owed) || 0;
-                            const paymentPercentage = amountOwed > 0 ? amountPaid / amountOwed : 0;
-                            
-                            const totalProfit = calculateProfit(sale);
-                            const actualProfit = totalProfit * paymentPercentage;
-                            const pendingProfit = totalProfit * (1 - paymentPercentage);
-                            
-                            return (
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-1">
-                                  <span className={
-                                    actualProfit >= 0
-                                      ? "text-green-600 dark:text-green-400"
-                                      : "text-red-600 dark:text-red-400"
-                                  }>
-                                    {formatCurrency(actualProfit)}
-                                  </span>
-                                  <span className="text-xs text-green-600 dark:text-green-400">
-                                    Actual
-                                  </span>
-                                </div>
-                                {pendingProfit > 0 && (
+                          {sale.payment_method === "credit" &&
+                          (sale as any).credits?.[0] ? (
+                            (() => {
+                              const credit = (sale as any).credits[0];
+                              const amountPaid =
+                                Number(credit.amount_paid) || 0;
+                              const amountOwed =
+                                Number(credit.amount_owed) || 0;
+                              const paymentPercentage =
+                                amountOwed > 0 ? amountPaid / amountOwed : 0;
+
+                              const totalProfit = calculateProfit(sale);
+                              const actualProfit =
+                                totalProfit * paymentPercentage;
+                              const pendingProfit =
+                                totalProfit * (1 - paymentPercentage);
+
+                              return (
+                                <div className="space-y-1">
                                   <div className="flex items-center gap-1">
-                                    <span className="text-orange-600 dark:text-orange-400">
-                                      {formatCurrency(pendingProfit)}
+                                    <span
+                                      className={
+                                        actualProfit >= 0
+                                          ? "text-green-600 dark:text-green-400"
+                                          : "text-red-600 dark:text-red-400"
+                                      }
+                                    >
+                                      {formatCurrency(actualProfit)}
                                     </span>
-                                    <span className="text-xs text-orange-600 dark:text-orange-400">
-                                      Pending
+                                    <span className="text-xs text-green-600 dark:text-green-400">
+                                      Actual
                                     </span>
                                   </div>
-                                )}
-                              </div>
-                            );
-                          })() : (
-                            <span className={
-                              calculateProfit(sale) >= 0
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-red-600 dark:text-red-400"
-                            }>
+                                  {pendingProfit > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-orange-600 dark:text-orange-400">
+                                        {formatCurrency(pendingProfit)}
+                                      </span>
+                                      <span className="text-xs text-orange-600 dark:text-orange-400">
+                                        Pending
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()
+                          ) : (
+                            <span
+                              className={
+                                calculateProfit(sale) >= 0
+                                  ? "text-green-600 dark:text-green-400"
+                                  : "text-red-600 dark:text-red-400"
+                              }
+                            >
                               {formatCurrency(calculateProfit(sale))}
                               {sale.payment_method === "credit" && (
                                 <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">
@@ -713,7 +774,14 @@ const Sales: React.FC = () => {
           </DialogHeader>
           <Form {...form}>
             <form
-              onSubmit={editingSale ? (e) => { e.preventDefault(); handleUpdateConfirm(); } : form.handleSubmit(onSubmit)}
+              onSubmit={
+                editingSale
+                  ? (e) => {
+                      e.preventDefault();
+                      handleUpdateConfirm();
+                    }
+                  : form.handleSubmit(onSubmit)
+              }
               className="space-y-4"
             >
               <FormField
@@ -750,14 +818,20 @@ const Sales: React.FC = () => {
                   <FormItem>
                     <FormLabel>Quantity</FormLabel>
                     <FormControl>
-                       <Input
-                         type="number"
-                         min="1"
-                         placeholder="Enter quantity"
-                         {...field}
-                         value={field.value || ''}
-                         onChange={(e) => field.onChange(e.target.value === '' ? '' : parseInt(e.target.value))}
-                       />
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="Enter quantity"
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value === ""
+                              ? ""
+                              : parseInt(e.target.value)
+                          )
+                        }
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -770,15 +844,21 @@ const Sales: React.FC = () => {
                   <FormItem>
                     <FormLabel>Selling Price</FormLabel>
                     <FormControl>
-                       <Input
-                         type="number"
-                         step="0.01"
-                         min="0"
-                         placeholder="0.00"
-                         {...field}
-                         value={field.value || ''}
-                         onChange={(e) => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                       />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value === ""
+                              ? ""
+                              : parseFloat(e.target.value)
+                          )
+                        }
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -825,46 +905,46 @@ const Sales: React.FC = () => {
                       </FormItem>
                     )}
                   />
-                   <FormField
-                     control={form.control}
-                     name="due_date"
-                     render={({ field }) => (
-                       <FormItem className="flex flex-col">
-                         <FormLabel>Due Date</FormLabel>
-                         <Popover>
-                           <PopoverTrigger asChild>
-                             <FormControl>
-                               <Button
-                                 variant="outline"
-                                 className={cn(
-                                   "w-full pl-3 text-left font-normal",
-                                   !field.value && "text-muted-foreground"
-                                 )}
-                               >
-                                 {field.value ? (
-                                   format(field.value, "PPP")
-                                 ) : (
-                                   <span>Pick a date</span>
-                                 )}
-                                 <CalendarIcon className="ml-auto h-5 w-5 opacity-50" />
-                               </Button>
-                             </FormControl>
-                           </PopoverTrigger>
-                           <PopoverContent className="w-auto p-0" align="start">
-                             <Calendar
-                               mode="single"
-                               selected={field.value}
-                               onSelect={field.onChange}
-                               disabled={(date) => date < new Date()}
-                               initialFocus
-                               className="p-3 pointer-events-auto"
-                             />
-                           </PopoverContent>
-                         </Popover>
-                         <FormMessage />
-                       </FormItem>
-                     )}
-                   />
+                  <FormField
+                    control={form.control}
+                    name="due_date"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Due Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-5 w-5 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              disabled={(date) => date < new Date()}
+                              initialFocus
+                              className="p-3 pointer-events-auto"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </>
               )}
               <FormField
@@ -964,7 +1044,10 @@ const Sales: React.FC = () => {
       </Dialog>
 
       {/* Record Sale Confirmation Dialog */}
-      <Dialog open={isRecordSaleConfirmOpen} onOpenChange={setIsRecordSaleConfirmOpen}>
+      <Dialog
+        open={isRecordSaleConfirmOpen}
+        onOpenChange={setIsRecordSaleConfirmOpen}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Confirm Submission</DialogTitle>
