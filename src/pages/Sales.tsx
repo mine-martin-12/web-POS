@@ -95,6 +95,13 @@ interface Sale {
     name: string;
     buying_price: number;
   };
+  credits?: {
+    amount_paid: number;
+    amount_owed: number;
+    status: string;
+    customer_name?: string;
+    due_date?: string;
+  }[];
 }
 
 interface Product {
@@ -248,7 +255,7 @@ const Sales: React.FC = () => {
         toast({ title: "Success", description: "Sale recorded successfully" });
       }
 
-      // If this is a credit sale, create a credit record
+      // Handle credit record for credit sales
       if (data.payment_method === "credit" && data.customer_name && data.due_date && saleId) {
         const creditData = {
           business_id: profile?.business_id,
@@ -258,17 +265,35 @@ const Sales: React.FC = () => {
           due_date: data.due_date.toISOString(),
         };
 
-        const { error: creditError } = await supabase
-          .from("credits")
-          .insert(creditData);
+        if (editingSale) {
+          // Update existing credit record
+          const { error: creditError } = await supabase
+            .from("credits")
+            .update(creditData)
+            .eq("sale_id", saleId);
 
-        if (creditError) {
-          console.error("Error creating credit record:", creditError);
-          toast({
-            title: "Warning",
-            description: "Sale recorded but credit record failed to create",
-            variant: "destructive",
-          });
+          if (creditError) {
+            console.error("Error updating credit record:", creditError);
+            toast({
+              title: "Warning",
+              description: "Sale updated but credit record failed to update",
+              variant: "destructive",
+            });
+          }
+        } else {
+          // Create new credit record
+          const { error: creditError } = await supabase
+            .from("credits")
+            .insert(creditData);
+
+          if (creditError) {
+            console.error("Error creating credit record:", creditError);
+            toast({
+              title: "Warning",
+              description: "Sale recorded but credit record failed to create",
+              variant: "destructive",
+            });
+          }
         }
       }
 
@@ -550,12 +575,12 @@ const Sales: React.FC = () => {
                               <>
                                 <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                   paymentPercentage >= 100
-                                    ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+                                    ? "bg-success/20 text-success border border-success/30"
                                     : paymentPercentage > 0
-                                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
-                                    : "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
+                                    ? "bg-warning/20 text-warning border border-warning/30"
+                                    : "bg-destructive/20 text-destructive border border-destructive/30"
                                 }`}>
-                                  {paymentPercentage >= 100 ? "Paid" : paymentPercentage > 0 ? `${paymentPercentage.toFixed(0)}% Paid` : "Unpaid"}
+                                  {paymentPercentage >= 100 ? "Credit" : paymentPercentage > 0 ? `${paymentPercentage.toFixed(0)}% Paid` : "Unpaid Credit"}
                                 </span>
                                 {paymentPercentage < 100 && (
                                   <span className="text-xs text-muted-foreground">
