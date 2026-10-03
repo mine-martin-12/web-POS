@@ -16,7 +16,8 @@ import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Sales from "./pages/Sales";
 import Credits from "./pages/Credits";
-import Users from "./pages/Users";
+import StaffPage from "./features/staff/pages/StaffPage";
+import AcceptInvite from "./pages/AcceptInvite";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/accept-invite" element={<AcceptInvite />} />
               
               {/* Protected routes */}
               <Route path="/dashboard" element={
@@ -76,7 +78,7 @@ const App = () => (
                 <AuthGuard>
                   <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
                     <DashboardLayout>
-                      <Users />
+                      <StaffPage />
                     </DashboardLayout>
                   </InactivityWrapper>
                 </AuthGuard>

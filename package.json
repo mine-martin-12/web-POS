@@ -11,9 +11,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "check": "npm run lint && npm run typecheck && npm run check:functions && npm test && npm run build",
     "preview": "vite preview",
-    "db:types": "node scripts/gen-db-types.ts"
+    "db:types": "node scripts/gen-db-types.ts",
+    "check:functions": "deno check supabase/functions"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -79,6 +80,7 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
+    "deno": "^2.9.6",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
