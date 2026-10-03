@@ -11,11 +11,22 @@ import type { SaleChanges } from "@/features/sales/types";
 import { getErrorMessage } from "@/lib/errors";
 import { useAuth } from "@/contexts/AuthContext";
 import { dayKey } from "@/lib/dates";
+import { useRequestChange } from "@/features/approvals/useRequestChange";
 import type { CreditListRow } from "../api";
 
 /** Admins change who owes a balance and when it's due. Amounts follow the sale itself. */
-export function EditCreditDialog({ credit, onOpenChange }: { credit: CreditListRow | null; onOpenChange: (open: boolean) => void }) {
+export function EditCreditDialog({
+  credit,
+  onOpenChange,
+  requestMode = false,
+}: {
+  credit: CreditListRow | null;
+  onOpenChange: (open: boolean) => void;
+  /** Staff: the change becomes a request for an admin to approve. */
+  requestMode?: boolean;
+}) {
   const update = useUpdateSale();
+  const { request, dialog: reasonDialog } = useRequestChange();
   const { business } = useAuth();
   const [dueDate, setDueDate] = useState("");
   const [customer, setCustomer] = useState<CustomerChoice>(null);
@@ -43,6 +54,10 @@ export function EditCreditDialog({ credit, onOpenChange }: { credit: CreditListR
       onOpenChange(false);
       return;
     }
+    if (requestMode) {
+      request({ table: "credits", recordId: credit.id, values: { ...changes }, onDone: () => onOpenChange(false) });
+      return;
+    }
     try {
       await update.mutateAsync({ id: credit.sale_id, changes });
       toast.success("Credit updated");
@@ -58,7 +73,7 @@ export function EditCreditDialog({ credit, onOpenChange }: { credit: CreditListR
     <Dialog open={credit !== null} onOpenChange={(open) => !update.isPending && onOpenChange(open)}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit credit</DialogTitle>
+          <DialogTitle>{requestMode ? "Request a change" : "Edit credit"}</DialogTitle>
           <DialogDescription>
             To change the amount, edit the sale itself; the balance follows it.
           </DialogDescription>
@@ -75,12 +90,13 @@ export function EditCreditDialog({ credit, onOpenChange }: { credit: CreditListR
         </div>
         <DialogFooter className="flex-col gap-2 sm:flex-row-reverse sm:justify-start sm:gap-2">
           <Button onClick={save} disabled={update.isPending} className="w-full sm:w-auto">
-            {update.isPending ? "Saving…" : "Save changes"}
+            {update.isPending ? "Saving…" : requestMode ? "Continue" : "Save changes"}
           </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={update.isPending} className="w-full sm:w-auto">
             Cancel
           </Button>
         </DialogFooter>
+        {reasonDialog}
       </DialogContent>
     </Dialog>
   );

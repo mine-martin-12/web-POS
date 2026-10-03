@@ -265,6 +265,68 @@ export type Database = {
           },
         ]
       }
+      pending_updates: {
+        Row: {
+          admin_note: string | null
+          archived_at: string | null
+          business_id: string
+          id: string
+          new_values: Json
+          old_values: Json
+          reason: string
+          record_id: string
+          requested_at: string
+          requested_by: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["change_status"]
+          table_name: string
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          archived_at?: string | null
+          business_id: string
+          id?: string
+          new_values: Json
+          old_values: Json
+          reason: string
+          record_id: string
+          requested_at?: string
+          requested_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["change_status"]
+          table_name: string
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          archived_at?: string | null
+          business_id?: string
+          id?: string
+          new_values?: Json
+          old_values?: Json
+          reason?: string
+          record_id?: string
+          requested_at?: string
+          requested_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["change_status"]
+          table_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_updates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           archived_at: string | null
@@ -495,6 +557,10 @@ export type Database = {
         Args: { _product_id: string; _quantity: number }
         Returns: Database["public"]["Tables"]["products"]["Row"]
       }
+      archive_change: {
+        Args: { _id: string; _archived?: boolean }
+        Returns: Database["public"]["Tables"]["pending_updates"]["Row"]
+      }
       complete_invitation: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -543,6 +609,14 @@ export type Database = {
         Args: { _product_id: string; _quantity: number; _selling_price: number; _payment_type?: string; _payment_method?: string; _deposit?: number; _due_date?: string; _customer_id?: string; _sale_day?: string; _description?: string }
         Returns: Database["public"]["Tables"]["sales"]["Row"]
       }
+      resubmit_change: {
+        Args: { _id: string; _new_values: Json; _reason: string }
+        Returns: Database["public"]["Tables"]["pending_updates"]["Row"]
+      }
+      review_change: {
+        Args: { _id: string; _decision: string; _note?: string }
+        Returns: Database["public"]["Tables"]["pending_updates"]["Row"]
+      }
       sale_timestamp: {
         Args: { _day: string; _tz: string }
         Returns: string
@@ -551,9 +625,17 @@ export type Database = {
         Args: { _query?: string; _limit?: number }
         Returns: Database["public"]["Views"]["customers_secure"]["Row"][]
       }
+      submit_change: {
+        Args: { _table: string; _record_id: string; _new_values: Json; _reason: string }
+        Returns: Database["public"]["Tables"]["pending_updates"]["Row"]
+      }
       update_business_details: {
         Args: { _name: string; _phone?: string; _email?: string; _address?: string; _currency?: string; _timezone?: string }
         Returns: Database["public"]["Tables"]["businesses"]["Row"]
+      }
+      update_product: {
+        Args: { _product_id: string; _changes: Json }
+        Returns: undefined
       }
       update_sale: {
         Args: { _sale_id: string; _changes: Json }
@@ -562,6 +644,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      change_status: "pending" | "approved" | "sent_back_for_review" | "rejected"
       credit_status: "unpaid" | "partially_paid" | "paid"
     }
     CompositeTypes: {
@@ -691,6 +774,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      change_status: ["pending", "approved", "sent_back_for_review", "rejected"],
       credit_status: ["unpaid", "partially_paid", "paid"],
     },
   },

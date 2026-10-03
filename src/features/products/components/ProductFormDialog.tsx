@@ -10,6 +10,8 @@ import { TextField } from "@/components/common/form-fields";
 import { getErrorMessage } from "@/lib/errors";
 import { invalidSummary, requiredText } from "@/lib/validation";
 import type { Product } from "../api";
+import { useRequestChange } from "@/features/approvals/useRequestChange";
+import { toCents } from "@/lib/finance";
 import { useCreateProduct, useUpdateProduct } from "../hooks";
 
 const money = (label: string) =>
@@ -32,9 +34,12 @@ interface ProductFormDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Edit (admins); omit to add. */
   product?: Product | null;
+  /** Staff: edits become a change request for an admin to approve. */
+  requestMode?: boolean;
 }
 
-export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDialogProps) {
+export function ProductFormDialog({ open, onOpenChange, product, requestMode = false }: ProductFormDialogProps) {
+  const { request, dialog: reasonDialog } = useRequestChange();
   const create = useCreateProduct();
   const update = useUpdateProduct();
   const busy = create.isPending || update.isPending;
@@ -68,6 +73,19 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
       size: data.size,
       buying_price: Number(data.buying_price),
     };
+    if (product && requestMode) {
+      const values: Record<string, unknown> = {};
+      if (input.name !== product.name) values.name = input.name;
+      if (input.description !== product.description) values.description = input.description;
+      if ((input.size || null) !== (product.size || null)) values.size = input.size;
+      if (toCents(input.buying_price) !== toCents(product.buying_price)) values.buying_price = input.buying_price;
+      if (!Object.keys(values).length) {
+        toast.info("Nothing to change");
+        return;
+      }
+      request({ table: "products", recordId: product.id, values, onDone: () => onOpenChange(false) });
+      return;
+    }
     try {
       if (product) {
         await update.mutateAsync({ id: product.id, product: input });
@@ -88,7 +106,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
     <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{product ? "Edit product" : "Add a product"}</DialogTitle>
+          <DialogTitle>{product ? (requestMode ? "Request a change" : "Edit product") : "Add a product"}</DialogTitle>
           <DialogDescription>
             {product ? "To change stock, use Add stock or record a sale." : "You can add more stock later."}
           </DialogDescription>
@@ -128,7 +146,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
             )}
             <DialogFooter className="flex-col gap-2 sm:flex-row-reverse sm:justify-start sm:gap-2">
               <Button type="submit" disabled={busy} className="w-full sm:w-auto">
-                {busy ? "Saving…" : product ? "Save changes" : "Add product"}
+                {busy ? "Saving…" : product ? (requestMode ? "Continue" : "Save changes") : "Add product"}
               </Button>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy} className="w-full sm:w-auto">
                 Cancel
@@ -136,6 +154,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
             </DialogFooter>
           </form>
         </Form>
+        {reasonDialog}
       </DialogContent>
     </Dialog>
   );

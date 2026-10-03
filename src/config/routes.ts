@@ -1,4 +1,5 @@
 import {
+  ClipboardCheck,
   Contact,
   HandCoins,
   LayoutDashboard,
@@ -21,7 +22,7 @@ import type { Capability } from "@/lib/permissions";
 
 export const APP_HOME = "/app";
 
-export type NavBadge = "overdueCredits";
+export type NavBadge = "overdueCredits" | "approvals";
 
 export interface AppPage {
   path: string;
@@ -71,6 +72,14 @@ export const APP_PAGES: AppPage[] = [
     description: "Stock levels and buying prices",
     icon: Package,
     section: "main",
+  },
+  {
+    path: "/app/approvals",
+    title: "Approvals",
+    description: "Change requests and their review",
+    icon: ClipboardCheck,
+    section: "main",
+    badge: "approvals",
   },
   {
     path: "/app/staff",

@@ -102,7 +102,7 @@ const SalesPage: React.FC = () => {
   const actions = (sale: SaleRow) => (
     <SaleActions
       sale={sale}
-      canEdit={security.canEditRecords}
+      editLabel={security.canEditRecords ? "Edit" : "Request change"}
       canDelete={security.canDeleteRecords}
       onPrint={print}
       onEdit={(s) => {
@@ -278,6 +278,7 @@ const SalesPage: React.FC = () => {
         sale={editing}
         defaultMethod={defaults.method}
         lastPrices={defaults.prices}
+        requestMode={!security.canEditRecords}
       />
 
       <ConfirmDialog
@@ -333,14 +334,14 @@ function SummaryTile({
 
 function SaleActions({
   sale,
-  canEdit,
+  editLabel,
   canDelete,
   onPrint,
   onEdit,
   onDelete,
 }: {
   sale: SaleRow;
-  canEdit: boolean;
+  editLabel: string;
   canDelete: boolean;
   onPrint: (s: SaleRow) => void;
   onEdit: (s: SaleRow) => void;
@@ -358,12 +359,10 @@ function SaleActions({
           <Printer className="mr-2 h-4 w-4" />
           Print receipt
         </DropdownMenuItem>
-        {canEdit && (
-          <DropdownMenuItem onSelect={() => onEdit(sale)}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem onSelect={() => onEdit(sale)}>
+          <Pencil className="mr-2 h-4 w-4" />
+          {editLabel}
+        </DropdownMenuItem>
         {canDelete && (
           <>
             <DropdownMenuSeparator />

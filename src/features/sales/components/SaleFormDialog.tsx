@@ -22,6 +22,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { clampPayment, saleMoney, toCents } from "@/lib/finance";
 import { cn } from "@/lib/utils";
 import { invalidSummary } from "@/lib/validation";
+import { useRequestChange } from "@/features/approvals/useRequestChange";
 import { useRecordSale, useUpdateSale } from "../hooks";
 import {
   PAYMENT_METHOD_LABELS,
@@ -60,9 +61,20 @@ interface SaleFormDialogProps {
   defaultMethod?: PaidMethod;
   /** Last price charged per product, to pre-fill the price. */
   lastPrices?: Map<string, number>;
+  /** Staff: edits become a change request for an admin to approve. */
+  requestMode?: boolean;
 }
 
-export function SaleFormDialog({ open, onOpenChange, products, sale, defaultMethod = "cash", lastPrices }: SaleFormDialogProps) {
+export function SaleFormDialog({
+  open,
+  onOpenChange,
+  products,
+  sale,
+  defaultMethod = "cash",
+  lastPrices,
+  requestMode = false,
+}: SaleFormDialogProps) {
+  const { request, dialog: reasonDialog } = useRequestChange();
   const { business } = useAuth();
   const timeZone = business?.timezone ?? DEFAULT_TIME_ZONE;
   const today = todayKey(timeZone);
@@ -187,6 +199,16 @@ export function SaleFormDialog({ open, onOpenChange, products, sale, defaultMeth
     try {
       if (sale) {
         const changes = diffSale(sale, data, customerId, timeZone);
+        if (requestMode) {
+          // Due dates are requested on the credit itself (Credits page).
+          const { due_date: _dueDate, ...values } = changes;
+          if (Object.keys(values).length === 0) {
+            toast.info("Nothing to change");
+            return;
+          }
+          request({ table: "sales", recordId: sale.id, values: { ...values }, onDone: () => onOpenChange(false) });
+          return;
+        }
         if (Object.keys(changes).length === 0) {
           onOpenChange(false);
           return;
@@ -246,7 +268,7 @@ export function SaleFormDialog({ open, onOpenChange, products, sale, defaultMeth
     <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{editing ? "Edit sale" : "Record a sale"}</DialogTitle>
+          <DialogTitle>{editing ? (requestMode ? "Request a change" : "Edit sale") : "Record a sale"}</DialogTitle>
           <DialogDescription>
             {editing
               ? `${saleType ? PAYMENT_TYPE_LABELS[saleType] : ""}. Payments on credit are recorded on the Credits page.`
@@ -447,7 +469,7 @@ export function SaleFormDialog({ open, onOpenChange, products, sale, defaultMeth
             </div>
           )}
 
-          {paymentType !== "paid" && (
+          {paymentType !== "paid" && !(editing && requestMode) && (
             <div className="space-y-2">
               <Label htmlFor="sale-dueDate" className={labelClass("dueDate")}>
                 Balance due on
@@ -481,13 +503,14 @@ export function SaleFormDialog({ open, onOpenChange, products, sale, defaultMeth
           {/* On mobile the primary action comes first and buttons are full width. */}
           <DialogFooter className="flex-col gap-2 sm:flex-row-reverse sm:justify-start sm:gap-2">
             <Button type="submit" disabled={busy} className="w-full sm:w-auto">
-              {busy ? "Saving…" : editing ? "Save changes" : "Record sale"}
+              {busy ? "Saving…" : editing ? (requestMode ? "Continue" : "Save changes") : "Record sale"}
             </Button>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy} className="w-full sm:w-auto">
               Cancel
             </Button>
           </DialogFooter>
         </form>
+        {reasonDialog}
       </DialogContent>
     </Dialog>
   );

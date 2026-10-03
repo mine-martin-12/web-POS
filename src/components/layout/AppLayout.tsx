@@ -6,6 +6,7 @@ import { PrivacyToggle } from "@/components/session/PrivacyToggle";
 import { usePrivacyMode } from "@/contexts/PrivacyModeContext";
 import { SHORTCUTS } from "@/lib/platform";
 import { EyeOff } from "lucide-react";
+import { useApprovalsRealtime } from "@/features/approvals/hooks";
 import { AppHeader } from "./AppHeader";
 import { AppSidebar } from "./AppSidebar";
 import { CommandPalette } from "./CommandPalette";
@@ -16,6 +17,7 @@ export function AppLayout() {
   const { pathname } = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const privacy = usePrivacyMode();
+  useApprovalsRealtime();
 
   return (
     <SidebarProvider>

@@ -8,6 +8,9 @@ vi.mock("../hooks", () => ({
   useRecordSale: () => ({ mutateAsync: recordSale, isPending: false }),
   useUpdateSale: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+vi.mock("@/features/approvals/useRequestChange", () => ({
+  useRequestChange: () => ({ request: vi.fn(), dialog: null }),
+}));
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ business: { currency: "KES", timezone: "Africa/Nairobi" } }),
 }));

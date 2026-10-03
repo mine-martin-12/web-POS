@@ -28,6 +28,7 @@ const Products = lazy(() => import("./features/products/pages/ProductsPage"));
 const CustomersPage = lazy(() => import("./features/customers/pages/CustomersPage"));
 const Settings = lazy(() => import("./pages/Settings"));
 const StaffPage = lazy(() => import("./features/staff/pages/StaffPage"));
+const ApprovalsPage = lazy(() => import("./features/approvals/pages/ApprovalsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -92,6 +93,7 @@ const App = () => (
                         </RoleBasedAccess>
                       }
                     />
+                    <Route path="approvals" element={<ApprovalsPage />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="*" element={<NotFound />} />
                   </Route>

@@ -109,32 +109,28 @@ const CreditsPage: React.FC = () => {
           <span className="sm:hidden">Pay</span>
         </Button>
       )}
-      {(security.canEditRecords || security.canDeleteRecords) && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={`More actions for ${c.customer_name}`}>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {security.canEditRecords && (
-              <DropdownMenuItem onSelect={() => setEditing(c)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit customer / due date
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label={`More actions for ${c.customer_name}`}>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setEditing(c)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            {security.canEditRecords ? "Edit customer / due date" : "Request change"}
+          </DropdownMenuItem>
+          {security.canDeleteRecords && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setDeleting(c)} className="text-destructive focus:text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete sale
               </DropdownMenuItem>
-            )}
-            {security.canDeleteRecords && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => setDeleting(c)} className="text-destructive focus:text-destructive">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete sale
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 
@@ -282,7 +278,11 @@ const CreditsPage: React.FC = () => {
       </Card>
 
       <RecordPaymentDialog credit={paying} onOpenChange={(open) => !open && setPaying(null)} />
-      <EditCreditDialog credit={editing} onOpenChange={(open) => !open && setEditing(null)} />
+      <EditCreditDialog
+        credit={editing}
+        onOpenChange={(open) => !open && setEditing(null)}
+        requestMode={!security.canEditRecords}
+      />
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(open) => !open && setDeleting(null)}

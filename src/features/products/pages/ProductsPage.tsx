@@ -101,37 +101,33 @@ const ProductsPage: React.FC = () => {
         <span className="hidden lg:inline">Add stock</span>
         <span className="lg:hidden">Stock</span>
       </Button>
-      {(security.canEditRecords || security.canDeleteRecords) && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={`More actions for ${p.name}`}>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {security.canEditRecords && (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setEditing(p);
-                  setFormOpen(true);
-                }}
-              >
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label={`More actions for ${p.name}`}>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onSelect={() => {
+              setEditing(p);
+              setFormOpen(true);
+            }}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            {security.canEditRecords ? "Edit" : "Request change"}
+          </DropdownMenuItem>
+          {security.canDeleteRecords && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setArchiving(p)} className="text-destructive focus:text-destructive">
+                <Archive className="mr-2 h-4 w-4" />
+                Archive
               </DropdownMenuItem>
-            )}
-            {security.canDeleteRecords && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => setArchiving(p)} className="text-destructive focus:text-destructive">
-                  <Archive className="mr-2 h-4 w-4" />
-                  Archive
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 
@@ -283,6 +279,7 @@ const ProductsPage: React.FC = () => {
           if (!open) setEditing(null);
         }}
         product={editing}
+        requestMode={!!editing && !security.canEditRecords}
       />
       <AddStockDialog product={restocking} onOpenChange={(open) => !open && setRestocking(null)} />
       <ConfirmDialog

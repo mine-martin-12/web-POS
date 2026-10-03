@@ -8,6 +8,11 @@ export const queryKeys = {
     all: ["staff"] as const,
     members: () => [...queryKeys.staff.all, "members"] as const,
     invitations: () => [...queryKeys.staff.all, "invitations"] as const,
+    names: () => [...queryKeys.staff.all, "names"] as const,
+  },
+  approvals: {
+    all: ["approvals"] as const,
+    list: () => [...queryKeys.approvals.all, "list"] as const,
   },
   sales: {
     all: ["sales"] as const,
@@ -31,5 +36,6 @@ export const queryKeys = {
   nav: {
     all: ["nav"] as const,
     overdueCredits: () => [...queryKeys.nav.all, "overdue-credits"] as const,
+    approvals: (role: string) => [...queryKeys.nav.all, "approvals", role] as const,
   },
 } as const;
