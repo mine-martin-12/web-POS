@@ -5,7 +5,7 @@ interface Sale {
   product_id: string;
   quantity: number;
   selling_price: number;
-  payment_method: "cash" | "mpesa" | "bank" | "credit";
+  payment_method: "cash" | "mpesa" | "bank_cheque" | "credit";
   total_price?: number;
   sale_date: string;
   description?: string;

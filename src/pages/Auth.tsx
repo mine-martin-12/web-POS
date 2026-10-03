@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +12,7 @@ import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicat
 import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal';
 
 const Auth = () => {
-  const { user, signIn, signUp, isRecoveryMode } = useAuth();
+  const { user, signIn, signUpBusiness, isRecoveryMode } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -42,7 +43,9 @@ const Auth = () => {
     setIsLoading(true);
     
     try {
-      await signIn(signInEmail, signInPassword);
+      const { error } = await signIn(signInEmail, signInPassword);
+      if (error) toast.error("Couldn't sign in", { description: error });
+      else toast.success("Welcome back");
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +56,15 @@ const Auth = () => {
     setIsLoading(true);
     
     try {
-      await signUp(signUpEmail, signUpPassword, firstName, lastName, businessName);
+      const { error } = await signUpBusiness({
+        email: signUpEmail,
+        password: signUpPassword,
+        firstName,
+        lastName,
+        businessName,
+      });
+      if (error) toast.error("Couldn't create your business", { description: error });
+      else toast.success("Business created", { description: "You're signed in as its admin." });
     } finally {
       setIsLoading(false);
     }

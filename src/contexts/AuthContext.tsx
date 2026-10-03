@@ -1,342 +1,235 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { validatePassword } from '@/components/auth/PasswordStrengthIndicator';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import type { Enums, Tables } from "@/integrations/supabase/types";
+import { getErrorMessage } from "@/lib/errors";
 
-interface Profile {
-  id: string;
-  user_id: string;
+export type AppRole = Enums<"app_role">;
+export type Profile = Tables<"profiles">;
+export type Business = Tables<"businesses">;
+
+export interface SignUpBusinessInput {
   email: string;
-  first_name: string;
-  last_name: string;
-  role: 'admin' | 'user';
-  business_id: string;
-  business_name: string;
-  created_at: string;
-  updated_at: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  businessName: string;
 }
 
-interface AuthContextType {
+interface AuthContextValue {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  business: Business | null;
+  role: AppRole | null;
+  /** True until the initial session has been resolved. */
   isLoading: boolean;
+  /** True while the profile/business/role for the current user is being loaded. */
+  isLoadingRole: boolean;
+  /** True while the user arrived through a password-recovery link. */
   isRecoveryMode: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: unknown }>;
-  signUp: (email: string, password: string, firstName: string, lastName: string, businessName: string) => Promise<{ error: unknown }>;
-  signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUpBusiness: (input: SignUpBusinessInput) => Promise<{ error: string | null }>;
+  signOut: (options?: { silent?: boolean }) => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextValue | null>(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };
 
+/** Supabase can emit the same event twice in quick succession (e.g. INITIAL_SESSION and
+ * SIGNED_IN on load, or once per tab); identical events within this window are ignored. */
+const DUPLICATE_EVENT_WINDOW_MS = 100;
+
+function isRecoveryUrl(): boolean {
+  const hash = new URLSearchParams(window.location.hash.substring(1));
+  const query = new URLSearchParams(window.location.search);
+  return (hash.get("type") ?? query.get("type")) === "recovery" || window.location.pathname === "/reset-password";
+}
+
+interface LoadedAccount {
+  profile: Profile;
+  business: Business | null;
+  role: AppRole | null;
+}
+
+/** Profile, business and role in one round trip. */
+async function loadAccount(userId: string): Promise<LoadedAccount | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*, businesses(*), user_roles(role)")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  const { businesses, user_roles, ...profile } = data;
+  // PostgREST returns one-to-one embeds as an object; older versions return an array.
+  const roleRow = Array.isArray(user_roles) ? user_roles[0] : user_roles;
+  return {
+    profile,
+    business: (Array.isArray(businesses) ? businesses[0] : businesses) ?? null,
+    role: roleRow?.role ?? null,
+  };
+}
+
+/** Turn Supabase auth errors into something a shop owner can act on. */
+function friendlyAuthError(message: string): string {
+  if (/invalid login credentials/i.test(message)) return "Incorrect email or password.";
+  if (/email not confirmed/i.test(message)) return "Please confirm your email address first.";
+  if (/already registered|already been registered/i.test(message)) return "This email is already registered. Sign in instead.";
+  if (/database error saving new user/i.test(message)) return "We couldn't create your account. The business name may already be taken.";
+  if (/rate limit/i.test(message)) return "Too many attempts. Please wait a minute and try again.";
+  return message;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [account, setAccount] = useState<LoadedAccount | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
-  const { toast } = useToast();
+  const [isLoadingRole, setIsLoadingRole] = useState(false);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(isRecoveryUrl);
 
-  // Helper function to check if current session is a recovery session
-  const checkRecoveryMode = () => {
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const urlParams = new URLSearchParams(window.location.search);
-    const accessToken = hashParams.get('access_token') || urlParams.get('access_token');
-    const type = hashParams.get('type') || urlParams.get('type');
-    const refreshToken = hashParams.get('refresh_token') || urlParams.get('refresh_token');
-    
-    // More robust recovery detection
-    return !!(accessToken && type === 'recovery') || 
-           !!(refreshToken && type === 'recovery') ||
-           window.location.pathname === '/reset-password';
-  };
+  const lastEvent = useRef<{ key: string; at: number } | null>(null);
+  const loadedFor = useRef<string | null>(null);
 
-  const fetchProfile = async (userId: string) => {
+  const applyUser = useCallback(async (user: User | null, force = false) => {
+    if (!user) {
+      loadedFor.current = null;
+      setAccount(null);
+      setIsLoadingRole(false);
+      return;
+    }
+    if (!force && loadedFor.current === user.id) return;
+    loadedFor.current = user.id;
+    setIsLoadingRole(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching profile:', error);
-        return null;
+      const loaded = await loadAccount(user.id);
+      if (loadedFor.current !== user.id) return; // a newer sign-in/out won the race
+      if (!loaded || !loaded.profile.is_active) {
+        loadedFor.current = null;
+        setAccount(null);
+        await supabase.auth.signOut();
+        toast.error("Access denied", {
+          description: loaded
+            ? "Your account has been deactivated. Please contact your administrator."
+            : "Your account is not linked to a business. Please contact your administrator.",
+        });
+        return;
       }
-
-      return data as Profile;
+      setAccount(loaded);
     } catch (error) {
-      console.error('Error in fetchProfile:', error);
-      return null;
+      loadedFor.current = null;
+      toast.error("Couldn't load your account", { description: getErrorMessage(error) });
+    } finally {
+      setIsLoadingRole(false);
     }
-  };
-
-  const refreshProfile = async () => {
-    if (user) {
-      const userProfile = await fetchProfile(user.id);
-      setProfile(userProfile);
-    }
-  };
-
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('AuthContext - Auth state change:', { event, hasSession: !!session, hasUser: !!session?.user, path: window.location.pathname });
-        
-        // Check if we're in recovery mode FIRST
-        const inRecoveryMode = checkRecoveryMode();
-        console.log('AuthContext - Recovery mode:', inRecoveryMode);
-        
-        // Set recovery mode immediately to prevent race conditions
-        setIsRecoveryMode(inRecoveryMode);
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user && !inRecoveryMode) {
-          // Only fetch profile for normal sessions, not recovery sessions
-          setTimeout(async () => {
-            const userProfile = await fetchProfile(session.user.id);
-            setProfile(userProfile);
-            setIsLoading(false);
-          }, 0);
-        } else {
-          // Don't set profile during recovery mode
-          if (!inRecoveryMode) {
-            setProfile(null);
-          }
-          setIsLoading(false);
-        }
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('AuthContext - Initial session check:', { hasSession: !!session, hasUser: !!session?.user });
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      // Check if we're in recovery mode
-      const inRecoveryMode = checkRecoveryMode();
-      setIsRecoveryMode(inRecoveryMode);
-      console.log('AuthContext - Initial recovery mode:', inRecoveryMode);
-      
-      if (session?.user && !inRecoveryMode) {
-        setTimeout(async () => {
-          const userProfile = await fetchProfile(session.user.id);
-          setProfile(userProfile);
-          setIsLoading(false);
-        }, 0);
-      } else {
-        setIsLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-        return { error };
+  useEffect(() => {
+    // Subscribe BEFORE reading the current session so no event is missed in between.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, next: Session | null) => {
+      const key = `${event}:${next?.access_token ?? ""}`;
+      const now = Date.now();
+      if (lastEvent.current && lastEvent.current.key === key && now - lastEvent.current.at < DUPLICATE_EVENT_WINDOW_MS) {
+        return;
       }
+      lastEvent.current = { key, at: now };
 
-      if (data.user) {
-        // Check if user has a valid profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', data.user.id)
-          .single();
+      if (event === "PASSWORD_RECOVERY") setIsRecoveryMode(true);
+      if (event === "SIGNED_OUT") setIsRecoveryMode(false);
+      setSession(next);
+      // Never await Supabase calls inside this callback (it holds the auth lock).
+      setTimeout(() => {
+        void applyUser(next?.user ?? null, event === "USER_UPDATED");
+      }, 0);
+    });
 
-        if (profileError || !profileData) {
-          // User exists in auth but not in profiles - sign them out immediately
-          await supabase.auth.signOut();
-          toast({
-            title: "Access Denied",
-            description: "Your account has been disabled. Please contact your administrator.",
-            variant: "destructive",
-          });
-          return { error: new Error('Account disabled') };
-        }
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        setSession(data.session);
+        await applyUser(data.session?.user ?? null);
+      })
+      .finally(() => setIsLoading(false));
 
-        toast({
-          title: "Success",
-          description: "Signed in successfully!",
-        });
-      }
+    return () => subscription.unsubscribe();
+  }, [applyUser]);
 
-      return { error: null };
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
-      return { error };
-    } finally {
-      setIsLoading(false);
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+    if (error) return { error: friendlyAuthError(error.message) };
+    return { error: null };
+  }, []);
+
+  const signUpBusiness = useCallback(async (input: SignUpBusinessInput) => {
+    const businessName = input.businessName.trim();
+    const { data: available, error: checkError } = await supabase.rpc("is_business_name_available", {
+      _name: businessName,
+    });
+    if (checkError) return { error: getErrorMessage(checkError) };
+    if (!available) return { error: `A business called "${businessName}" already exists. Please choose another name.` };
+
+    const { error } = await supabase.auth.signUp({
+      email: input.email.trim().toLowerCase(),
+      password: input.password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/app`,
+        // The server only reads these to name the new business and profile; role and
+        // business are decided by the database, never by the client.
+        data: {
+          first_name: input.firstName.trim(),
+          last_name: input.lastName.trim(),
+          business_name: businessName,
+        },
+      },
+    });
+    if (error) return { error: friendlyAuthError(error.message) };
+    return { error: null };
+  }, []);
+
+  const signOut = useCallback(async (options?: { silent?: boolean }) => {
+    const { error } = await supabase.auth.signOut();
+    loadedFor.current = null;
+    setAccount(null);
+    setSession(null);
+    if (error) {
+      toast.error("Error signing out", { description: error.message });
+    } else if (!options?.silent) {
+      toast.success("Signed out");
     }
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string, firstName: string, lastName: string, businessName: string) => {
-    try {
-      // Validate password strength
-      const passwordValidation = validatePassword(password);
-      if (!passwordValidation.isValid) {
-        toast({
-          title: "Weak Password",
-          description: "Password must be at least 8 characters with uppercase, lowercase, number, and special character.",
-          variant: "destructive"
-        });
-        return { error: new Error('Password does not meet requirements') };
-      }
+  const refresh = useCallback(async () => {
+    await applyUser(session?.user ?? null, true);
+  }, [applyUser, session?.user]);
 
-      // Check if email already exists
-      const { data: existingUser, error: checkError } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('email', email)
-        .maybeSingle();
-
-      if (checkError) {
-        toast({
-          title: "Error",
-          description: "Failed to validate email. Please try again.",
-          variant: "destructive"
-        });
-        return { error: checkError };
-      }
-
-      if (existingUser) {
-        const error = new Error('This email is already registered. Please log in or use a different email.');
-        toast({
-          title: "Email Already Exists",
-          description: error.message,
-          variant: "destructive"
-        });
-        return { error };
-      }
-
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-            business_name: businessName,
-            role: 'admin' // First user in business becomes admin
-          }
-        }
-      });
-
-      if (error) {
-        // Handle specific Supabase auth errors
-        if (error.message.includes('already registered')) {
-          toast({
-            title: "Email Already Exists",
-            description: "This email is already registered. Please log in or use a different email.",
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: error.message,
-            variant: "destructive"
-          });
-        }
-      } else {
-        toast({
-          title: "Success",
-          description: "Account created successfully! Please check your email to verify your account."
-        });
-      }
-
-      return { error };
-    } catch (error) {
-      toast({
-        title: "Error", 
-        description: "An unexpected error occurred",
-        variant: "destructive"
-      });
-      return { error };
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      // Clear any existing timeouts/intervals
-      const allTimeouts = window.setTimeout(() => {}, 0);
-      for (let i = 1; i < allTimeouts; i++) {
-        window.clearTimeout(i);
-      }
-
-      // Sign out from Supabase (this will revoke the refresh token)
-      await supabase.auth.signOut();
-      
-      // Clear local state
-      setUser(null);
-      setSession(null);
-      setProfile(null);
-      
-      // Clear any CSRF tokens or other security-related data
-      localStorage.removeItem('csrf_token');
-      
-      toast({
-        title: "Success",
-        description: "Signed out successfully!"
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Error signing out",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const value = {
-    user,
-    session,
-    profile,
-    isLoading,
-    isRecoveryMode,
-    signIn,
-    signUp,
-    signOut,
-    refreshProfile
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user: session?.user ?? null,
+      session,
+      profile: account?.profile ?? null,
+      business: account?.business ?? null,
+      role: account?.role ?? null,
+      isLoading,
+      isLoadingRole,
+      isRecoveryMode,
+      signIn,
+      signUpBusiness,
+      signOut,
+      refresh,
+    }),
+    [session, account, isLoading, isLoadingRole, isRecoveryMode, signIn, signUpBusiness, signOut, refresh],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

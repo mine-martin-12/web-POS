@@ -1,3 +1,4 @@
+import { useSecurity } from "@/hooks/useSecurity";
 import { getErrorMessage } from "@/lib/errors";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -77,7 +78,7 @@ const saleSchema = z
         return isNaN(num) ? 0 : num;
       })
       .refine((val) => val >= 0, "Selling price must be non-negative"),
-    payment_method: z.enum(["cash", "mpesa", "bank", "credit"], {
+    payment_method: z.enum(["cash", "mpesa", "bank_cheque", "credit"], {
       required_error: "Payment method is required",
     }),
     description: z.string().optional(),
@@ -104,7 +105,7 @@ interface Sale {
   product_id: string;
   quantity: number;
   selling_price: number;
-  payment_method: "cash" | "mpesa" | "bank" | "credit";
+  payment_method: "cash" | "mpesa" | "bank_cheque" | "credit";
   total_price?: number;
   sale_date: string;
   description?: string;
@@ -137,6 +138,7 @@ interface Product {
 
 const Sales: React.FC = () => {
   const { profile } = useAuth();
+  const { canDeleteRecords } = useSecurity();
   const { toast } = useToast();
   const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -291,7 +293,8 @@ const Sales: React.FC = () => {
           sale_id: saleId,
           customer_name: data.customer_name,
           amount_owed: data.quantity * data.selling_price,
-          due_date: data.due_date.toISOString(),
+          // Calendar date in local time; toISOString() would shift it to the previous UTC day.
+          due_date: format(data.due_date, "yyyy-MM-dd"),
         };
 
         if (editingSale) {
@@ -367,7 +370,7 @@ const Sales: React.FC = () => {
   };
 
   const handleDeleteConfirm = (id: string) => {
-    if (profile?.role !== "admin") {
+    if (!canDeleteRecords) {
       toast({
         title: "Access Denied",
         description: "Only admins can delete sales",
@@ -443,7 +446,7 @@ const Sales: React.FC = () => {
           sale.total_price || sale.quantity * sale.selling_price,
           sale.payment_method === "mpesa"
             ? "M-Pesa"
-            : sale.payment_method === "bank"
+            : sale.payment_method === "bank_cheque"
             ? "Bank/Cheque"
             : sale.payment_method === "credit"
             ? "Credit Sale"
@@ -651,7 +654,7 @@ const Sales: React.FC = () => {
                               <span className="text-xs text-muted-foreground">
                                 {sale.payment_method === "mpesa"
                                   ? "M-Pesa"
-                                  : sale.payment_method === "bank"
+                                  : sale.payment_method === "bank_cheque"
                                   ? "Bank/Cheque"
                                   : "Cash"}
                               </span>
@@ -746,7 +749,7 @@ const Sales: React.FC = () => {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          {profile?.role === "admin" && (
+                          {canDeleteRecords && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -883,7 +886,7 @@ const Sales: React.FC = () => {
                       <SelectContent>
                         <SelectItem value="cash">Cash</SelectItem>
                         <SelectItem value="mpesa">M-Pesa</SelectItem>
-                        <SelectItem value="bank">Bank/Cheque</SelectItem>
+                        <SelectItem value="bank_cheque">Bank/Cheque</SelectItem>
                         <SelectItem value="credit">Credit</SelectItem>
                       </SelectContent>
                     </Select>

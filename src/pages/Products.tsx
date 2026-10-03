@@ -1,3 +1,4 @@
+import { useSecurity } from "@/hooks/useSecurity";
 import { getErrorMessage } from "@/lib/errors";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -82,6 +83,7 @@ interface Product {
 
 const Products: React.FC = () => {
   const { profile } = useAuth();
+  const { canDeleteRecords } = useSecurity();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +121,7 @@ const Products: React.FC = () => {
       const { data, error } = await supabase
         .from("products")
         .select("*")
+        .is("archived_at", null)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -199,12 +202,11 @@ const Products: React.FC = () => {
     const data = stockForm.getValues();
 
     try {
-      const { error } = await supabase
-        .from("products")
-        .update({
-          stock_quantity: stockProduct.stock_quantity + data.additional_stock,
-        })
-        .eq("id", stockProduct.id);
+      // Atomic server-side increment: concurrent sales can't be overwritten.
+      const { error } = await supabase.rpc("add_stock", {
+        _product_id: stockProduct.id,
+        _quantity: data.additional_stock,
+      });
 
       if (error) throw error;
 
@@ -241,7 +243,7 @@ const Products: React.FC = () => {
   };
 
   const handleDeleteClick = (id: string) => {
-    if (profile?.role !== "admin") {
+    if (!canDeleteRecords) {
       toast({
         title: "Access Denied",
         description: "Only admins can delete products",
@@ -257,13 +259,14 @@ const Products: React.FC = () => {
     if (!productToDelete) return;
 
     try {
+      // Archive rather than delete so the product's sales history is kept.
       const { error } = await supabase
         .from("products")
-        .delete()
+        .update({ archived_at: new Date().toISOString() })
         .eq("id", productToDelete);
 
       if (error) throw error;
-      toast({ title: "Success", description: "Product deleted successfully" });
+      toast({ title: "Success", description: "Product archived" });
       fetchProducts();
     } catch (error) {
       toast({
@@ -452,7 +455,7 @@ const Products: React.FC = () => {
                             >
                               <Package className="h-4 w-4" />
                             </Button>
-                            {profile?.role === "admin" && (
+                            {canDeleteRecords && (
                               <Button
                                 variant="outline"
                                 size="sm"

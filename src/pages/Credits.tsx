@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useSecurity } from '@/hooks/useSecurity';
+import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/contexts/AuthContext';
 import { Search, DollarSign, Calendar, User, Edit, Trash2 } from 'lucide-react';
 
@@ -26,6 +28,7 @@ interface Credit {
 
 const Credits: React.FC = () => {
   const { user } = useAuth();
+  const { canDeleteRecords } = useSecurity();
   const { toast } = useToast();
   const [credits, setCredits] = useState<Credit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +79,9 @@ const Credits: React.FC = () => {
     if (!selectedCredit || !paymentAmount) return;
 
     const amount = parseFloat(paymentAmount);
-    if (amount <= 0 || amount > (selectedCredit.amount_owed - selectedCredit.amount_paid)) {
+    // Compare in cents: 100.1 - 0.2 is 99.8999… in floating point.
+    const outstandingCents = Math.round((selectedCredit.amount_owed - selectedCredit.amount_paid) * 100);
+    if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) > outstandingCents) {
       toast({
         title: 'Invalid Amount',
         description: 'Payment amount must be valid and not exceed the outstanding balance',
@@ -86,14 +91,11 @@ const Credits: React.FC = () => {
     }
 
     try {
-      const newAmountPaid = selectedCredit.amount_paid + amount;
-      
-      const { error } = await supabase
-        .from('credits')
-        .update({ 
-          amount_paid: newAmountPaid
-        })
-        .eq('id', selectedCredit.id);
+      // Atomic server-side increment with a payment history row.
+      const { error } = await supabase.rpc('record_credit_payment', {
+        _credit_id: selectedCredit.id,
+        _amount: amount,
+      });
 
       if (error) throw error;
 
@@ -110,7 +112,7 @@ const Credits: React.FC = () => {
       console.error('Error recording payment:', error);
       toast({
         title: 'Error',
-        description: 'Failed to record payment',
+        description: getErrorMessage(error, 'Failed to record payment'),
         variant: 'destructive',
       });
     }
@@ -342,13 +344,15 @@ const Credits: React.FC = () => {
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openDeleteDialog(credit)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {canDeleteRecords && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDeleteDialog(credit)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                             {credit.status !== 'paid' && (
                               <Button
                                 variant="outline"

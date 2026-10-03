@@ -1,3 +1,5 @@
+import { useSecurity } from '@/hooks/useSecurity';
+import { ROLE_LABELS } from '@/lib/permissions';
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -31,7 +33,8 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-  const { profile, signOut } = useAuth();
+  const { profile, business, role, signOut } = useAuth();
+  const { canManageUsers } = useSecurity();
   const { theme, toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
@@ -41,7 +44,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     { name: 'Products', href: '/products', icon: Package },
     { name: 'Sales', href: '/sales', icon: ShoppingCart },
     { name: 'Credits', href: '/credits', icon: Users },
-    ...(profile?.role === 'admin' ? [{ name: 'Users', href: '/users', icon: Users }] : []),
+    ...(canManageUsers ? [{ name: 'Users', href: '/users', icon: Users }] : []),
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
@@ -77,7 +80,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               </div>
               <div>
                 <h1 className="font-semibold text-foreground">Smart POS</h1>
-                <p className="text-xs text-muted-foreground">{profile?.business_name}</p>
+                <p className="text-xs text-muted-foreground">{business?.name}</p>
               </div>
             </div>
             <Button
@@ -127,7 +130,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   {profile?.first_name} {profile?.last_name}
                 </p>
                 <p className="text-xs text-muted-foreground capitalize">
-                  {profile?.role}
+                  {role ? ROLE_LABELS[role] : ''}
                 </p>
               </div>
             </div>
@@ -184,7 +187,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut}>
+                <DropdownMenuItem onClick={() => void signOut()}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Sign out</span>
                 </DropdownMenuItem>
