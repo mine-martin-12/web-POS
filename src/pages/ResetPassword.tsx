@@ -13,8 +13,8 @@ import { Form } from "@/components/ui/form";
 import { AuthShell } from "@/components/auth/AuthShell";
 import ForgotPasswordModal from "@/components/auth/ForgotPasswordModal";
 import PasswordStrengthIndicator from "@/components/auth/PasswordStrengthIndicator";
-import { TextField, invalidSummary } from "@/components/common/form-fields";
-import { strongPassword } from "@/lib/validation";
+import { TextField } from "@/components/common/form-fields";
+import { strongPassword, invalidSummary } from "@/lib/validation";
 
 const schema = z
   .object({
@@ -46,7 +46,7 @@ const ResetPassword = () => {
 
   useEffect(() => {
     if (!done) return;
-    const timer = window.setTimeout(() => navigate("/dashboard", { replace: true }), REDIRECT_AFTER_MS);
+    const timer = window.setTimeout(() => navigate("/app", { replace: true }), REDIRECT_AFTER_MS);
     return () => window.clearTimeout(timer);
   }, [done, navigate]);
 
@@ -78,7 +78,7 @@ const ResetPassword = () => {
             <h2 className="text-xl font-semibold">Password updated</h2>
             <p className="mt-1 text-sm text-muted-foreground">Taking you to your dashboard…</p>
           </div>
-          <Button onClick={() => navigate("/dashboard", { replace: true })}>Continue now</Button>
+          <Button onClick={() => navigate("/app", { replace: true })}>Continue now</Button>
         </CardContent>
       </Card>
     );

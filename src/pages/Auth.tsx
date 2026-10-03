@@ -12,8 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AuthShell } from "@/components/auth/AuthShell";
 import ForgotPasswordModal from "@/components/auth/ForgotPasswordModal";
 import PasswordStrengthIndicator from "@/components/auth/PasswordStrengthIndicator";
-import { TextField, invalidSummary } from "@/components/common/form-fields";
-import { emailField, requiredText, strongPassword } from "@/lib/validation";
+import { TextField } from "@/components/common/form-fields";
+import { emailField, requiredText, strongPassword, invalidSummary } from "@/lib/validation";
 
 const signInSchema = z.object({
   email: emailField,
@@ -53,7 +53,7 @@ const Auth = () => {
   if (isRecoveryMode) return <Navigate to="/reset-password" replace />;
   if (user && profile) {
     const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
-    return <Navigate to={from && from !== "/auth" ? from : "/dashboard"} replace />;
+    return <Navigate to={from && from !== "/auth" ? from : "/app"} replace />;
   }
 
   const onSignIn = async (data: SignInData) => {

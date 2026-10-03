@@ -42,7 +42,7 @@ export function AdminRequired() {
         <p className="mt-1 text-sm text-muted-foreground">Ask an administrator of your business if you need access.</p>
       </div>
       <Button asChild variant="outline">
-        <Link to="/dashboard">Back to dashboard</Link>
+        <Link to="/app">Back to dashboard</Link>
       </Button>
     </div>
   );

@@ -3,6 +3,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Link2, Mail, MoreHorizontal, Pencil, Plus, Search, UserCheck, UserX, XCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActionParam } from "@/hooks/useActionParam";
 import { getErrorMessage } from "@/lib/errors";
 import { ROLE_LABELS } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ const StaffPage: React.FC = () => {
   const [toggling, setToggling] = useState<Member | null>(null);
   const [revoking, setRevoking] = useState<Invitation | null>(null);
   const [sharedLink, setSharedLink] = useState<string | null>(null);
+  useActionParam("invite", () => setInviteOpen(true));
 
   // Invited people get a placeholder account straight away; list them under
   // "Pending invitations" until they accept, not as members.

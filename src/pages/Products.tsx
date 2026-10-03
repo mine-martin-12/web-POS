@@ -1,4 +1,5 @@
 import { useSecurity } from "@/hooks/useSecurity";
+import { useActionParam } from "@/hooks/useActionParam";
 import { getErrorMessage } from "@/lib/errors";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -332,6 +333,9 @@ const Products: React.FC = () => {
     });
     setIsDialogOpen(true);
   };
+
+  // Quick actions (header button, command palette, mobile FAB) link here with ?new=1.
+  useActionParam("new", openAddDialog);
 
   const openStockDialog = (product: Product) => {
     setStockProduct(product);

@@ -49,7 +49,7 @@ const AcceptInvite: React.FC = () => {
       toast.success(business ? `Welcome to ${business.name}` : "Welcome aboard", {
         description: "Your password is set. Use it to sign in next time.",
       });
-      navigate("/dashboard", { replace: true });
+      navigate("/app", { replace: true });
     } catch (error) {
       toast.error("Couldn't set your password", { description: getErrorMessage(error) });
     } finally {

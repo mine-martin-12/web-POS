@@ -9,4 +9,8 @@ export const queryKeys = {
     members: () => [...queryKeys.staff.all, "members"] as const,
     invitations: () => [...queryKeys.staff.all, "invitations"] as const,
   },
+  nav: {
+    all: ["nav"] as const,
+    overdueCredits: () => [...queryKeys.nav.all, "overdue-credits"] as const,
+  },
 } as const;

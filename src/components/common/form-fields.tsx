@@ -95,12 +95,3 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, React.InputHTMLA
   },
 );
 PasswordInput.displayName = "PasswordInput";
-
-/** One summary toast for an invalid submit; field-level messages carry the detail. */
-export function invalidSummary(errors: Record<string, unknown>): { title: string; description: string } {
-  const count = Object.keys(errors).length;
-  return {
-    title: "Please check the form",
-    description: count === 1 ? "One field needs your attention." : `${count} fields need your attention.`,
-  };
-}
