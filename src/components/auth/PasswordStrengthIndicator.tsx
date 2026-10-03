@@ -30,18 +30,18 @@ const PasswordStrengthIndicator: React.FC<PasswordStrengthIndicatorProps> = ({
         {requirements.map((req) => (
           <div key={req.key} className="flex items-center gap-2 text-sm">
             {req.met ? (
-              <Check className="h-4 w-4 text-green-500" />
+              <Check className="h-4 w-4 text-success" />
             ) : (
-              <X className="h-4 w-4 text-red-500" />
+              <X className="h-4 w-4 text-destructive" />
             )}
-            <span className={req.met ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}>
+            <span className={req.met ? 'text-success' : 'text-destructive'}>
               {req.label}
             </span>
           </div>
         ))}
       </div>
       {validation.isValid && (
-        <div className="text-sm text-green-600 dark:text-green-400 font-medium">
+        <div className="text-sm text-success font-medium">
           ✓ Password meets all requirements
         </div>
       )}
