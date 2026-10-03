@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Archive, Download, MoreHorizontal, Package, PackagePlus, Pencil, Plus, Search } from "lucide-react";
+import { Archive, Download, MoreHorizontal, Package, PackagePlus, Pencil, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActionParam } from "@/hooks/useActionParam";
 import { useSecurity } from "@/hooks/useSecurity";
+import { useUrlState } from "@/hooks/useUrlState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,11 +16,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Money } from "@/components/common/Money";
+import { DataTable, type DataTableColumn } from "@/components/common/data-table/DataTable";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { datedFilename, downloadCsv, toCsv } from "@/lib/csv";
 import { getErrorMessage } from "@/lib/errors";
@@ -28,6 +30,8 @@ import { LOW_STOCK_THRESHOLD, type Product } from "../api";
 import { AddStockDialog } from "../components/AddStockDialog";
 import { ProductFormDialog } from "../components/ProductFormDialog";
 import { useArchiveProduct, useProducts } from "../hooks";
+
+type StockFilter = "all" | "low" | "out";
 
 function stockBadge(stock: number) {
   if (stock <= 0) return <Badge variant="destructive">Out of stock</Badge>;
@@ -45,11 +49,14 @@ const ProductsPage: React.FC = () => {
   const security = useSecurity();
   const products = useProducts();
   const archive = useArchiveProduct();
-  const [search, setSearch] = useState("");
+  const url = useUrlState();
+  const search = url.get("q");
+  const stockFilter = (url.get("stock", "all") as StockFilter) || "all";
+
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [restocking, setRestocking] = useState<Product | null>(null);
-  const [archiving, setArchiving] = useState<Product | null>(null);
+  const [archiving, setArchiving] = useState<Product[] | null>(null);
 
   const openNew = () => {
     setEditing(null);
@@ -59,16 +66,19 @@ const ProductsPage: React.FC = () => {
 
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return (products.data ?? []).filter(
-      (p) => !term || p.name.toLowerCase().includes(term) || p.description.toLowerCase().includes(term),
-    );
-  }, [products.data, search]);
+    return (products.data ?? [])
+      .filter((p) =>
+        stockFilter === "out" ? p.stock_quantity <= 0 : stockFilter === "low" ? p.stock_quantity < LOW_STOCK_THRESHOLD : true,
+      )
+      .filter((p) => !term || p.name.toLowerCase().includes(term) || p.description.toLowerCase().includes(term));
+  }, [products.data, search, stockFilter]);
+  // Tiles summarise exactly the rows on screen.
   const stockValue = useMemo(() => rows.reduce((sum, p) => sum + p.stock_quantity * toCents(p.buying_price), 0), [rows]);
   const lowCount = rows.filter((p) => p.stock_quantity < LOW_STOCK_THRESHOLD).length;
 
-  const exportCsv = () => {
+  const exportCsv = (list: Product[]) => {
     const csv = toCsv(
-      rows,
+      list,
       [
         { header: "ID", value: (_p, i) => `P${String(i + 1).padStart(4, "0")}` },
         { header: "Name", value: (p) => p.name },
@@ -78,7 +88,11 @@ const ProductsPage: React.FC = () => {
         { header: "Buying price", value: (p) => Number(p.buying_price).toFixed(2) },
         { header: "Stock value", value: (p) => ((p.stock_quantity * toCents(p.buying_price)) / 100).toFixed(2) },
       ],
-      [[business?.name ?? "Smart POS"], ["Products export", format(new Date(), "PPpp")], ["Currency", business?.currency ?? DEFAULT_CURRENCY]],
+      [
+        [business?.name ?? "Smart POS"],
+        ["Products export", format(new Date(), "PPpp")],
+        ["Currency", business?.currency ?? DEFAULT_CURRENCY],
+      ],
     );
     downloadCsv(csv, datedFilename("products", "csv"));
   };
@@ -86,11 +100,13 @@ const ProductsPage: React.FC = () => {
   const confirmArchive = async () => {
     if (!archiving) return;
     try {
-      await archive.mutateAsync(archiving.id);
-      toast.success("Product archived", { description: `${archiving.name} is hidden; its sales history is kept.` });
+      for (const p of archiving) await archive.mutateAsync(p.id);
+      toast.success(archiving.length === 1 ? "Product archived" : `${archiving.length} products archived`, {
+        description: "Hidden from lists; sales history is kept.",
+      });
       setArchiving(null);
     } catch (error) {
-      toast.error("Couldn't archive the product", { description: getErrorMessage(error) });
+      toast.error("Couldn't archive", { description: getErrorMessage(error) });
     }
   };
 
@@ -120,7 +136,7 @@ const ProductsPage: React.FC = () => {
           {security.canDeleteRecords && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setArchiving(p)} className="text-destructive focus:text-destructive">
+              <DropdownMenuItem onSelect={() => setArchiving([p])} className="text-destructive focus:text-destructive">
                 <Archive className="mr-2 h-4 w-4" />
                 Archive
               </DropdownMenuItem>
@@ -130,6 +146,43 @@ const ProductsPage: React.FC = () => {
       </DropdownMenu>
     </div>
   );
+
+  const columns: DataTableColumn<Product>[] = [
+    {
+      id: "name",
+      header: "Product",
+      sortValue: (p) => p.name.toLowerCase(),
+      cell: (p) => (
+        <div>
+          <div className="font-medium">
+            {p.name}
+            {p.size && <span className="font-normal text-muted-foreground"> · {p.size}</span>}
+          </div>
+          {p.description && <div className="max-w-sm truncate text-xs text-muted-foreground">{p.description}</div>}
+        </div>
+      ),
+    },
+    { id: "stock", header: "Stock", sortValue: (p) => p.stock_quantity, cell: (p) => stockBadge(p.stock_quantity) },
+    {
+      id: "price",
+      header: "Buying price",
+      align: "right",
+      sortValue: (p) => Number(p.buying_price),
+      cell: (p) => <Money value={Number(p.buying_price)} />,
+    },
+    ...(security.canViewFinancialData
+      ? [
+          {
+            id: "value",
+            header: "Stock value",
+            align: "right" as const,
+            sortValue: (p: Product) => p.stock_quantity * toCents(p.buying_price),
+            cell: (p: Product) => <Money cents={p.stock_quantity * toCents(p.buying_price)} />,
+          },
+        ]
+      : []),
+    { id: "actions", header: <span className="sr-only">Actions</span>, cell: actions },
+  ];
 
   return (
     <div className="space-y-6">
@@ -144,7 +197,7 @@ const ProductsPage: React.FC = () => {
             <span className="sm:hidden">Add</span>
             <span className="hidden sm:inline">Add product</span>
           </Button>
-          <Button variant="outline" onClick={exportCsv} disabled={!rows.length} className="w-full sm:order-1 sm:w-auto">
+          <Button variant="outline" onClick={() => exportCsv(rows)} disabled={!rows.length} className="w-full sm:order-1 sm:w-auto">
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
@@ -152,125 +205,85 @@ const ProductsPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Products</p>
-            {products.isLoading ? <Skeleton className="mt-2 h-7 w-16" /> : <p className="mt-1 text-2xl font-bold tabular-nums">{rows.length}</p>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Low or out of stock</p>
-            {products.isLoading ? (
-              <Skeleton className="mt-2 h-7 w-16" />
-            ) : (
-              <p className={`mt-1 text-2xl font-bold tabular-nums ${lowCount ? "text-warning-foreground dark:text-warning" : ""}`}>{lowCount}</p>
-            )}
-          </CardContent>
-        </Card>
+        <Tile label="Products" loading={products.isLoading}>
+          <span className="tabular-nums">{rows.length}</span>
+        </Tile>
+        <Tile label="Low or out of stock" loading={products.isLoading}>
+          <span className={lowCount ? "tabular-nums text-warning-foreground dark:text-warning" : "tabular-nums"}>{lowCount}</span>
+        </Tile>
         {security.canViewFinancialData && (
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Stock value (at cost)</p>
-              {products.isLoading ? <Skeleton className="mt-2 h-7 w-28" /> : <Money cents={stockValue} className="mt-1 block text-2xl font-bold" />}
-            </CardContent>
-          </Card>
+          <Tile label="Stock value (at cost)" loading={products.isLoading}>
+            <Money cents={stockValue} />
+          </Tile>
         )}
       </div>
 
-      <Card>
-        <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-          <CardTitle>Stock list</CardTitle>
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <Input placeholder="Search products" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" aria-label="Search products" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {products.isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : products.isError ? (
-            <div className="py-8 text-center">
-              <p className="text-sm text-muted-foreground">Couldn't load products.</p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={() => products.refetch()}>
-                Try again
-              </Button>
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-10 text-center">
-              <Package className="h-10 w-10 text-muted-foreground" aria-hidden />
-              <p className="text-sm text-muted-foreground">{search ? `No products match "${search}".` : "No products yet."}</p>
-              {!search && (
-                <Button variant="outline" size="sm" onClick={openNew}>
-                  Add your first product
-                </Button>
-              )}
-            </div>
-          ) : (
-            <>
-              <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead className="text-right">Buying price</TableHead>
-                      {security.canViewFinancialData && <TableHead className="text-right">Stock value</TableHead>}
-                      <TableHead>
-                        <span className="sr-only">Actions</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell>
-                          <div className="font-medium">
-                            {p.name}
-                            {p.size && <span className="font-normal text-muted-foreground"> · {p.size}</span>}
-                          </div>
-                          {p.description && <div className="max-w-sm truncate text-xs text-muted-foreground">{p.description}</div>}
-                        </TableCell>
-                        <TableCell>{stockBadge(p.stock_quantity)}</TableCell>
-                        <TableCell className="text-right">
-                          <Money value={Number(p.buying_price)} />
-                        </TableCell>
-                        {security.canViewFinancialData && (
-                          <TableCell className="text-right">
-                            <Money cents={p.stock_quantity * toCents(p.buying_price)} />
-                          </TableCell>
-                        )}
-                        <TableCell>{actions(p)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+      <DataTable<Product>
+        rows={rows}
+        columns={columns}
+        getRowId={(p) => p.id}
+        loading={products.isLoading}
+        caption="Products"
+        search={{ value: search, onChange: (v) => url.set({ q: v, page: null }), placeholder: "Search products" }}
+        filtered={!!search || stockFilter !== "all"}
+        onClearFilters={() => url.set({ q: null, stock: null, page: null })}
+        toolbar={
+          <ToggleGroup
+            type="single"
+            value={stockFilter}
+            onValueChange={(v) => url.set({ stock: v || "all", page: null }, { stock: "all" })}
+            variant="outline"
+            size="sm"
+            aria-label="Filter by stock"
+          >
+            <ToggleGroupItem value="all">All</ToggleGroupItem>
+            <ToggleGroupItem value="low">Low</ToggleGroupItem>
+            <ToggleGroupItem value="out">Out</ToggleGroupItem>
+          </ToggleGroup>
+        }
+        selectable={security.canBulkOperations}
+        bulkActions={(selected, clear) => (
+          <>
+            <Button size="sm" variant="outline" onClick={() => exportCsv(selected)}>
+              <Download className="mr-1.5 h-4 w-4" /> Export
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-destructive"
+              onClick={() => {
+                setArchiving(selected);
+                clear();
+              }}
+            >
+              <Archive className="mr-1.5 h-4 w-4" /> Archive
+            </Button>
+          </>
+        )}
+        emptyState={
+          <EmptyState
+            icon={Package}
+            title="No products yet"
+            description="Add what you sell so you can record sales and track stock."
+            action={{ label: "Add your first product", onClick: openNew }}
+          />
+        }
+        mobileCard={(p) => (
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-3 pr-6">
+              <div className="min-w-0">
+                <p className="truncate font-medium">
+                  {p.name}
+                  {p.size && <span className="font-normal text-muted-foreground"> · {p.size}</span>}
+                </p>
+                <Money value={Number(p.buying_price)} className="text-sm text-muted-foreground" />
               </div>
-              <ul className="space-y-3 md:hidden">
-                {rows.map((p) => (
-                  <li key={p.id} className="rounded-lg border p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">
-                          {p.name}
-                          {p.size && <span className="font-normal text-muted-foreground"> · {p.size}</span>}
-                        </p>
-                        <Money value={Number(p.buying_price)} className="text-sm text-muted-foreground" />
-                      </div>
-                      {stockBadge(p.stock_quantity)}
-                    </div>
-                    <div className="mt-2 flex justify-end">{actions(p)}</div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </CardContent>
-      </Card>
+              {stockBadge(p.stock_quantity)}
+            </div>
+            {actions(p)}
+          </div>
+        )}
+      />
 
       <ProductFormDialog
         open={formOpen}
@@ -285,8 +298,12 @@ const ProductsPage: React.FC = () => {
       <ConfirmDialog
         open={archiving !== null}
         onOpenChange={(open) => !open && setArchiving(null)}
-        title="Archive this product?"
-        description={`${archiving?.name ?? ""} will be hidden from your stock list and the sale form. Past sales keep it.`}
+        title={archiving && archiving.length > 1 ? `Archive ${archiving.length} products?` : "Archive this product?"}
+        description={
+          archiving && archiving.length > 1
+            ? "They'll be hidden from your stock list and the sale form. Past sales keep them."
+            : `${archiving?.[0]?.name ?? ""} will be hidden from your stock list and the sale form. Past sales keep it.`
+        }
         confirmLabel="Archive"
         busyLabel="Archiving…"
         destructive
@@ -296,5 +313,16 @@ const ProductsPage: React.FC = () => {
     </div>
   );
 };
+
+function Tile({ label, loading, children }: { label: string; loading: boolean; children: React.ReactNode }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        {loading ? <Skeleton className="mt-2 h-7 w-24" /> : <div className="mt-1 text-2xl font-bold">{children}</div>}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default ProductsPage;

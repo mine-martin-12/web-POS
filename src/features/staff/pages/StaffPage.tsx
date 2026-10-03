@@ -1,9 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { Link2, Mail, MoreHorizontal, Pencil, Plus, Search, UserCheck, UserX, XCircle } from "lucide-react";
+import { Link2, Mail, MoreHorizontal, Pencil, Plus, UserCheck, Users, UserX, XCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActionParam } from "@/hooks/useActionParam";
+import { useUrlState } from "@/hooks/useUrlState";
+import { DataTable } from "@/components/common/data-table/DataTable";
+import { EmptyState } from "@/components/common/EmptyState";
 import { getErrorMessage } from "@/lib/errors";
 import { ROLE_LABELS } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
@@ -17,9 +20,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EditMemberDialog } from "../components/EditMemberDialog";
 import { InvitationLink, InviteMemberDialog } from "../components/InviteMemberDialog";
@@ -37,7 +37,8 @@ const StaffPage: React.FC = () => {
   const resend = useResendInvitation();
   const revoke = useRevokeInvitation();
 
-  const [search, setSearch] = useState("");
+  const url = useUrlState();
+  const search = url.get("q");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editing, setEditing] = useState<Member | null>(null);
   const [toggling, setToggling] = useState<Member | null>(null);
@@ -167,121 +168,75 @@ const StaffPage: React.FC = () => {
         </Card>
       )}
 
-      <Card>
-        <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-          <CardTitle>Members</CardTitle>
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by name or email"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-              aria-label="Search members"
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {members.isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : members.isError ? (
-            <div className="py-8 text-center">
-              <p className="text-sm text-muted-foreground">Couldn't load the team.</p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={() => members.refetch()}>
-                Try again
-              </Button>
-            </div>
-          ) : visibleMembers.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              {search ? `No members match "${search}".` : "No members yet. Invite your first team member."}
-            </p>
-          ) : (
-            <>
-              {/* Desktop table */}
-              <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-12">
-                        <span className="sr-only">Actions</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {visibleMembers.map((member) => (
-                      <TableRow key={member.user_id} className={member.is_active ? undefined : "opacity-60"}>
-                        <TableCell className="font-medium">
-                          {fullName(member)}
-                          {member.user_id === user?.id && (
-                            <Badge variant="outline" className="ml-2">
-                              You
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{member.email}</TableCell>
-                        <TableCell>
-                          <Badge variant={member.role === "admin" ? "default" : "secondary"}>
-                            {ROLE_LABELS[member.role]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <MemberStatus member={member} />
-                        </TableCell>
-                        <TableCell>
-                          <MemberActions
-                            member={member}
-                            isSelf={member.user_id === user?.id}
-                            onEdit={setEditing}
-                            onToggle={setToggling}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+      <DataTable<Member>
+        rows={visibleMembers}
+        loading={members.isLoading}
+        error={members.error}
+        onRetry={() => members.refetch()}
+        caption="Team members"
+        getRowId={(m) => m.user_id}
+        search={{ value: search, onChange: (v) => url.set({ q: v, page: null }), placeholder: "Search by name or email" }}
+        filtered={!!search}
+        onClearFilters={() => url.set({ q: null })}
+        rowClassName={(m) => (m.is_active ? undefined : "opacity-60")}
+        emptyState={
+          <EmptyState
+            icon={Users}
+            title="It's just you so far"
+            description="Invite your staff so they can record sales from their own accounts."
+            action={{ label: "Invite a team member", onClick: () => setInviteOpen(true) }}
+          />
+        }
+        columns={[
+          {
+            id: "name",
+            header: "Name",
+            sortValue: (m) => fullName(m).toLowerCase(),
+            cell: (m) => (
+              <span className="font-medium">
+                {fullName(m)}
+                {m.user_id === user?.id && (
+                  <Badge variant="outline" className="ml-2">
+                    You
+                  </Badge>
+                )}
+              </span>
+            ),
+          },
+          { id: "email", header: "Email", sortValue: (m) => m.email, cell: (m) => m.email },
+          {
+            id: "role",
+            header: "Role",
+            sortValue: (m) => m.role,
+            cell: (m) => <Badge variant={m.role === "admin" ? "default" : "secondary"}>{ROLE_LABELS[m.role]}</Badge>,
+          },
+          { id: "status", header: "Status", cell: (m) => <MemberStatus member={m} /> },
+          {
+            id: "actions",
+            header: <span className="sr-only">Actions</span>,
+            className: "w-12",
+            cell: (m) => (
+              <MemberActions member={m} isSelf={m.user_id === user?.id} onEdit={setEditing} onToggle={setToggling} />
+            ),
+          },
+        ]}
+        mobileCard={(m) => (
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <p className="truncate font-medium">
+                {fullName(m)}
+                {m.user_id === user?.id && <span className="text-muted-foreground"> (you)</span>}
+              </p>
+              <p className="truncate text-sm text-muted-foreground">{m.email}</p>
+              <div className="flex gap-2">
+                <Badge variant={m.role === "admin" ? "default" : "secondary"}>{ROLE_LABELS[m.role]}</Badge>
+                <MemberStatus member={m} />
               </div>
-
-              {/* Mobile cards */}
-              <ul className="space-y-3 md:hidden">
-                {visibleMembers.map((member) => (
-                  <li
-                    key={member.user_id}
-                    className={`flex items-start justify-between gap-3 rounded-lg border p-3 ${member.is_active ? "" : "opacity-60"}`}
-                  >
-                    <div className="min-w-0 space-y-1">
-                      <p className="truncate font-medium">
-                        {fullName(member)}
-                        {member.user_id === user?.id && <span className="text-muted-foreground"> (you)</span>}
-                      </p>
-                      <p className="truncate text-sm text-muted-foreground">{member.email}</p>
-                      <div className="flex gap-2">
-                        <Badge variant={member.role === "admin" ? "default" : "secondary"}>
-                          {ROLE_LABELS[member.role]}
-                        </Badge>
-                        <MemberStatus member={member} />
-                      </div>
-                    </div>
-                    <MemberActions
-                      member={member}
-                      isSelf={member.user_id === user?.id}
-                      onEdit={setEditing}
-                      onToggle={setToggling}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            </div>
+            <MemberActions member={m} isSelf={m.user_id === user?.id} onEdit={setEditing} onToggle={setToggling} />
+          </div>
+        )}
+      />
 
       <InviteMemberDialog open={inviteOpen} onOpenChange={setInviteOpen} />
       <EditMemberDialog member={editing} isSelf={editing?.user_id === user?.id} onOpenChange={() => setEditing(null)} />
