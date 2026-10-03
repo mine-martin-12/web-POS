@@ -9,6 +9,10 @@ export const queryKeys = {
     members: () => [...queryKeys.staff.all, "members"] as const,
     invitations: () => [...queryKeys.staff.all, "invitations"] as const,
   },
+  sales: {
+    all: ["sales"] as const,
+    range: (from: string, to: string) => [...queryKeys.sales.all, "range", from, to] as const,
+  },
   nav: {
     all: ["nav"] as const,
     overdueCredits: () => [...queryKeys.nav.all, "overdue-credits"] as const,

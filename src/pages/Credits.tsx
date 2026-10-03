@@ -1,4 +1,7 @@
 import { formatMoney } from "@/lib/currency";
+import { format } from "date-fns";
+import { creditOutstanding, summarizeCredits, toCents } from "@/lib/finance";
+import { parseDayKey, todayKey } from "@/lib/dates";
 import React, { useState, useEffect } from 'react';
 import { Money } from "@/components/common/Money";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -82,8 +85,7 @@ const Credits: React.FC = () => {
 
     const amount = parseFloat(paymentAmount);
     // Compare in cents: 100.1 - 0.2 is 99.8999… in floating point.
-    const outstandingCents = Math.round((selectedCredit.amount_owed - selectedCredit.amount_paid) * 100);
-    if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) > outstandingCents) {
+    if (!Number.isFinite(amount) || amount <= 0 || toCents(amount) > creditOutstanding(selectedCredit)) {
       toast({
         title: 'Invalid Amount',
         description: 'Payment amount must be valid and not exceed the outstanding balance',
@@ -227,9 +229,8 @@ const Credits: React.FC = () => {
   };
 
 
-  const totalOutstanding = credits.reduce((sum, credit) => 
-    sum + (credit.amount_owed - credit.amount_paid), 0
-  );
+  const totalOutstanding = summarizeCredits(credits).outstanding;
+  const today = todayKey(business?.timezone);
 
   return (
     <div className="container mx-auto p-6">
@@ -245,7 +246,7 @@ const Credits: React.FC = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold"><Money value={totalOutstanding} /></div>
+            <div className="text-2xl font-bold"><Money cents={totalOutstanding} /></div>
           </CardContent>
         </Card>
 
@@ -313,17 +314,18 @@ const Credits: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredCredits.map((credit) => {
-                    const outstanding = credit.amount_owed - credit.amount_paid;
-                    const isOverdue = new Date(credit.due_date) < new Date() && credit.status !== 'paid';
+                    const outstanding = creditOutstanding(credit);
+                    // Overdue the day AFTER the due date (dates compared as calendar days).
+                    const isOverdue = credit.due_date < today && credit.status !== 'paid';
                     
                     return (
                       <TableRow key={credit.id} className={isOverdue ? 'bg-destructive/10' : ''}>
                         <TableCell className="font-medium">{credit.customer_name}</TableCell>
                         <TableCell><Money value={credit.amount_owed} /></TableCell>
                         <TableCell><Money value={credit.amount_paid} /></TableCell>
-                        <TableCell className="font-semibold"><Money value={outstanding} /></TableCell>
+                        <TableCell className="font-semibold"><Money cents={outstanding} /></TableCell>
                         <TableCell>
-                          {new Date(credit.due_date).toLocaleDateString()}
+                          {format(parseDayKey(credit.due_date), "PP")}
                           {isOverdue && <span className="text-destructive ml-1">(Overdue)</span>}
                         </TableCell>
                         <TableCell>
@@ -393,7 +395,7 @@ const Credits: React.FC = () => {
               <div>
                 <Label>Outstanding Balance</Label>
                 <div className="text-lg font-semibold">
-                  <Money value={selectedCredit.amount_owed - selectedCredit.amount_paid} />
+                  <Money cents={creditOutstanding(selectedCredit)} />
                 </div>
               </div>
               <div>
