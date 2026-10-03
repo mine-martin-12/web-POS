@@ -195,3 +195,32 @@ describe("direct writes are closed", () => {
     expect(msg).toMatch(message);
   });
 });
+
+describe("sales_month_summary", () => {
+  it("totals each month with billed = collected + outstanding, per caller", async () => {
+    const customerId = await createCustomerAs(db, acme.adminId, "Month Tester");
+    await recordSale(db, acme.adminId, acme.productId, { quantity: 1, price: 100, saleDay: "2026-01-10" });
+    await recordSale(db, acme.adminId, acme.productId, {
+      quantity: 1,
+      price: 300,
+      saleDay: "2026-01-20",
+      type: "partial",
+      deposit: 100,
+      customerId,
+    });
+    const [jan] = await asUser(db, acme.adminId, () =>
+      rows<{ month: string; sales_count: number; billed: string; collected: string; outstanding: string }>(
+        db,
+        "SELECT * FROM sales_month_summary() WHERE month = '2026-01'",
+      ),
+    );
+    expect(Number(jan.billed)).toBe(Number(jan.collected) + Number(jan.outstanding));
+    expect(Number(jan.outstanding)).toBeGreaterThanOrEqual(200);
+
+    // Staff only summarise their own sales.
+    const [staffJan] = await asUser(db, acme.staffId, () =>
+      rows<{ sales_count: number }>(db, "SELECT sales_count FROM sales_month_summary() WHERE month = '2026-01'"),
+    );
+    expect(staffJan.sales_count).toBeLessThan(jan.sales_count);
+  });
+});

@@ -18,6 +18,7 @@ export const queryKeys = {
     all: ["sales"] as const,
     list: () => [...queryKeys.sales.all, "list"] as const,
     range: (from: string, to: string) => [...queryKeys.sales.all, "range", from, to] as const,
+    months: () => [...queryKeys.sales.all, "months"] as const,
   },
   products: {
     all: ["products"] as const,

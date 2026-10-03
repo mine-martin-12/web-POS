@@ -104,6 +104,27 @@ export async function updateSale(id: string, changes: SaleChanges) {
   return data;
 }
 
+export interface MonthSummary {
+  month: string;
+  sales_count: number;
+  billed: number;
+  collected: number;
+  outstanding: number;
+}
+
+/** Per-month totals for the archive grid (staff: their own sales). */
+export async function fetchMonthSummary(): Promise<MonthSummary[]> {
+  const { data, error } = await supabase.rpc("sales_month_summary");
+  if (error) throw error;
+  return (data ?? []).map((m) => ({
+    month: m.month,
+    sales_count: Number(m.sales_count),
+    billed: Number(m.billed),
+    collected: Number(m.collected),
+    outstanding: Number(m.outstanding),
+  }));
+}
+
 export async function deleteSale(id: string): Promise<void> {
   const { data, error } = await supabase.from("sales").delete().eq("id", id).select("id");
   if (error) throw error;

@@ -97,7 +97,7 @@ const functions = await rows<{
 }>(
   db,
   `SELECT p.proname AS name, p.proargnames AS arg_names,
-          array(SELECT format_type(t, NULL) FROM unnest(p.proargtypes) t) AS arg_types,
+          array(SELECT format_type(t, NULL) FROM unnest(COALESCE(p.proallargtypes, p.proargtypes::oid[])) t) AS arg_types,
           p.proargmodes::text[] AS arg_modes,
           p.pronargdefaults AS num_defaults,
           format_type(p.prorettype, NULL) AS return_type,
@@ -206,8 +206,14 @@ for (const f of functions) {
     inputs.length === 0
       ? "Record<PropertyKey, never>"
       : `{ ${inputs.map((a, i) => `${a.name}${i >= firstDefault ? "?" : ""}: ${tsType(a.type)}`).join("; ")} }`;
+  // RETURNS TABLE(...) / OUT parameters: an array of row objects, like supabase gen types.
+  const outputs = f.arg_types
+    .map((type, i) => ({ type, name: f.arg_names?.[i] ?? `col${i}`, mode: f.arg_modes?.[i] ?? "i" }))
+    .filter((a) => a.mode === "t" || a.mode === "o" || a.mode === "b");
   let returns: string;
-  if (f.return_relation) {
+  if (outputs.length > 0 && f.return_type === "record") {
+    returns = `{ ${outputs.map((o) => `${o.name}: ${tsType(o.type)}`).join("; ")} }`;
+  } else if (f.return_relation) {
     const group = views.some((v) => v.name === f.return_relation) ? "Views" : "Tables";
     returns = `Database["public"]["${group}"]["${f.return_relation}"]["Row"]`;
   }

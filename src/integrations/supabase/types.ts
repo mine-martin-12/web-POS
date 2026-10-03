@@ -685,6 +685,10 @@ export type Database = {
         Args: { _day: string; _tz: string }
         Returns: string
       }
+      sales_month_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: { month: string; sales_count: number; billed: number; collected: number; outstanding: number }[]
+      }
       search_customers: {
         Args: { _query?: string; _limit?: number }
         Returns: Database["public"]["Views"]["customers_secure"]["Row"][]
