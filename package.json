@@ -14,7 +14,8 @@
     "check": "npm run lint && npm run typecheck && npm run check:functions && npm test && npm run build",
     "preview": "vite preview",
     "db:types": "node scripts/gen-db-types.ts",
-    "check:functions": "deno check supabase/functions"
+    "check:functions": "deno check supabase/functions",
+    "icons": "node scripts/gen-icons.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -89,11 +90,13 @@
     "globals": "^15.15.0",
     "jsdom": "^25.0.1",
     "postcss": "^8.5.6",
+    "sharp": "^0.33.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19",
     "vite-plugin-checker": "^0.10.2",
+    "vite-plugin-pwa": "^0.21.2",
     "vitest": "^2.1.9"
   }
 }
