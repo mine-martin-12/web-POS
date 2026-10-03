@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { fetchAll } from "@/lib/fetchAll";
 import type { CreateCustomerResult, Customer, PickerMode } from "./types";
 
@@ -11,8 +12,11 @@ export async function searchCustomers(mode: PickerMode, term: string, limit = 20
   return (data ?? []) as Customer[];
 }
 
+type SecureRow = Pick<Database["public"]["Views"]["customers_secure"]["Row"], keyof Customer>;
+
 export async function fetchCustomers(): Promise<Customer[]> {
-  return fetchAll<Customer>(() =>
+  // View columns are typed nullable; id, name and created_at are NOT NULL in the table.
+  const rows = await fetchAll<SecureRow>(() =>
     supabase
       .from("customers_secure")
       .select(COLUMNS)
@@ -20,6 +24,7 @@ export async function fetchCustomers(): Promise<Customer[]> {
       .order("name", { ascending: true })
       .order("id", { ascending: true }),
   );
+  return rows as Customer[];
 }
 
 export interface CustomerInput {

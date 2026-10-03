@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { getErrorMessage } from "@/lib/errors";
 import { ROLE_LABELS } from "@/lib/permissions";
 import { emailField } from "@/lib/validation";
-import type { InviteInput } from "../api";
 import { useInviteMember } from "../hooks";
 
 const schema = z.object({
@@ -50,8 +49,7 @@ export function InviteMemberDialog({ open, onOpenChange }: InviteMemberDialogPro
 
   const onSubmit = async (data: FormData) => {
     try {
-      // zod marks fields optional while tsconfig.strict is off; the resolver guarantees them.
-      const result = await invite.mutateAsync(data as InviteInput);
+      const result = await invite.mutateAsync(data);
       if (result.actionLink) {
         setLink(result.actionLink);
         if (data.delivery === "email") {
