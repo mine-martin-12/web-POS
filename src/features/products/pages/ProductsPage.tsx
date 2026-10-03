@@ -232,6 +232,7 @@ const ProductsPage: React.FC = () => {
         getRowId={(p) => p.id}
         loading={products.isLoading}
         caption="Products"
+        highlightId={url.get("focus") || null}
         search={{ value: search, onChange: (v) => url.set({ q: v, page: null }), placeholder: "Search products" }}
         filtered={!!search || stockFilter !== "all"}
         onClearFilters={() => url.set({ q: null, stock: null, page: null })}

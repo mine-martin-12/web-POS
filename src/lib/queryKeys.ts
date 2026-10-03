@@ -43,6 +43,11 @@ export const queryKeys = {
     all: ["activity"] as const,
     page: (filters: object, page: number, size: number) => [...queryKeys.activity.all, filters, page, size] as const,
   },
+  notifications: {
+    all: ["notifications"] as const,
+    list: () => [...queryKeys.notifications.all, "list"] as const,
+    preferences: () => [...queryKeys.notifications.all, "preferences"] as const,
+  },
   nav: {
     all: ["nav"] as const,
     overdueCredits: () => [...queryKeys.nav.all, "overdue-credits"] as const,

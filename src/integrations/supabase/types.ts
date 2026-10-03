@@ -165,6 +165,7 @@ export type Database = {
           customer_name: string
           due_date: string
           id: string
+          overdue_notified_at: string | null
           sale_id: string
           status: Database["public"]["Enums"]["credit_status"]
           updated_at: string
@@ -179,6 +180,7 @@ export type Database = {
           customer_name: string
           due_date: string
           id?: string
+          overdue_notified_at?: string | null
           sale_id: string
           status?: Database["public"]["Enums"]["credit_status"]
           updated_at?: string
@@ -193,6 +195,7 @@ export type Database = {
           customer_name?: string
           due_date?: string
           id?: string
+          overdue_notified_at?: string | null
           sale_id?: string
           status?: Database["public"]["Enums"]["credit_status"]
           updated_at?: string
@@ -368,6 +371,83 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          change_requests: boolean
+          low_stock: boolean
+          overdue_credits: boolean
+          team: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          change_requests?: boolean
+          low_stock?: boolean
+          overdue_credits?: boolean
+          team?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          change_requests?: boolean
+          low_stock?: boolean
+          overdue_credits?: boolean
+          team?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          archived_at: string | null
+          body: string | null
+          business_id: string
+          created_at: string
+          id: string
+          kind: string
+          link_id: string | null
+          link_table: string | null
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          body?: string | null
+          business_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          link_id?: string | null
+          link_table?: string | null
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          body?: string | null
+          business_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          link_id?: string | null
+          link_table?: string | null
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_updates: {
         Row: {
           admin_note: string | null
@@ -439,6 +519,7 @@ export type Database = {
           created_by: string | null
           description: string
           id: string
+          low_stock_notified_at: string | null
           name: string
           size: string | null
           stock_quantity: number
@@ -453,6 +534,7 @@ export type Database = {
           created_by?: string | null
           description: string
           id?: string
+          low_stock_notified_at?: string | null
           name: string
           size?: string | null
           stock_quantity?: number
@@ -467,6 +549,7 @@ export type Database = {
           created_by?: string | null
           description?: string
           id?: string
+          low_stock_notified_at?: string | null
           name?: string
           size?: string | null
           stock_quantity?: number
@@ -711,6 +794,10 @@ export type Database = {
       normalize_phone: {
         Args: { _raw: string; _default_country?: string }
         Returns: string
+      }
+      notify_overdue_credits: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       record_credit_payment: {
         Args: { _credit_id: string; _amount: number; _payment_method?: string }

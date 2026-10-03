@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
 import PasswordStrengthIndicator from "@/components/auth/PasswordStrengthIndicator";
+import { NotificationPreferencesCard } from "@/features/notifications/components/NotificationPreferencesCard";
 
 const profileSchema = z.object({
   first_name: requiredText("First name"),
@@ -380,6 +381,8 @@ const Settings: React.FC = () => {
             </Form>
           </CardContent>
         </Card>
+
+        <NotificationPreferencesCard />
 
         <Card>
           <CardHeader>
