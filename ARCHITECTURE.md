@@ -20,17 +20,22 @@ src/
   config/                 App-wide constants: routes.ts (route registry), session.ts (timeouts)
   contexts/               AuthContext (session, profile, business, role), PrivacyModeContext
   hooks/                  Cross-cutting hooks: useSecurity, useActionParam, useNavCounts…
-  lib/                    Framework-free helpers: currency, permissions, validation, errors,
-                          inactivity, breadcrumbs, platform. Pure and unit-tested.
+  lib/                    Framework-free helpers, pure and unit-tested: finance (all money maths),
+                          dates, currency, phone, csv, exports/ (PDF, XLSX, ZIP), fetchAll,
+                          optimistic, permissions, validation, smsTemplate, subscription, …
   components/
     ui/                   shadcn/ui primitives. DO NOT EDIT (see below)
-    common/               App building blocks composed from ui/: ConfirmDialog, Money,
+    common/               App building blocks composed from ui/: DataTable (every list),
+                          ExportMenu, ConfirmDialog, EmptyState, Money, BarList, DateField,
                           TextField, ThemeToggle, BrandedSpinner…
     auth/                 AuthGuard, PublicOnly, RoleBasedAccess, AuthShell…
     layout/               AppLayout, AppSidebar, AppHeader, Breadcrumbs, CommandPalette, MobileFab
     session/              InactivityManager, PrivacyToggle
-  features/<name>/        Self-contained modules: api.ts, hooks.ts, types.ts, components/, pages/
-  pages/                  Remaining top-level pages (being moved into features/ phase by phase)
+  features/<name>/        Self-contained modules: api.ts, hooks.ts, types.ts, lib.ts, components/, pages/
+                          sales, credits, customers, products, expenses, dashboard, reports,
+                          approvals, activity, notifications, messaging, staff
+  pages/                  Public/auth pages (landing, auth, reset, accept-invite, expired, 404)
+                          and Settings
   integrations/supabase/  Supabase client + GENERATED types.ts
 supabase/
   migrations/             SQL migrations (never edit an applied one; add a new file)
@@ -107,6 +112,15 @@ Every rule above has a test in `supabase/tests/` (`security`, `customers`, `sale
 - **CSV:** use `toCsv`/`downloadCsv` (`src/lib/csv.ts`): BOM, quoting, formula-injection guard, business header, readable sequential IDs.
 - **Dates:** day and month keys come from `src/lib/dates.ts` in the business time zone (`dayKey`, `monthKey`, `startOfDayUtc`). Calendar dates (e.g. `credits.due_date`) are SQL `date` values; never use `toISOString()` for them, because it shifts to UTC.
 
+## UI conventions
+
+- **Lists** use `DataTable` (search, sort, page, density, mobile cards, bulk select). Filters live in the URL via `useUrlState`. Summary tiles are computed from the same filtered rows the table shows.
+- **Row actions** that change money or stock are optimistic (`optimisticListUpdate`): update the cache, roll back with a toast on error, then invalidate.
+- **Exports** describe rows once as an `ExportSheet`. `ExportMenu` renders it as PDF (official A4), CSV and XLSX, so exports always match the screen.
+- **Colours** come from tokens in `src/index.css`, which are checked against WCAG AA in light and dark. Charts use `--chart-1..3` (colour-blind safe). Never hard-code greens or reds.
+- **Motion** uses the shared tokens; `prefers-reduced-motion` turns animation off globally.
+- **Empty states:** `EmptyState` for "nothing yet", and the table's built-in state for "no results".
+
 ## How to add a feature
 
 1. **Migration.** Add `supabase/migrations/<timestamp>_<name>.sql`.
@@ -139,8 +153,9 @@ Every rule above has a test in `supabase/tests/` (`security`, `customers`, `sale
 supabase link --project-ref khmimsqqpjzmysmsdidd
 supabase db dump -f backup-$(date +%F).sql      # always back up first
 supabase db push                                 # apply new migrations
-supabase functions deploy invite-staff manage-staff
+supabase functions deploy invite-staff manage-staff send-sms
 supabase secrets set SITE_URL=https://<your-domain> ALLOWED_ORIGINS=https://<your-domain>
+supabase secrets set AT_USERNAME=<africastalking-username> AT_API_KEY=<key> [AT_SENDER_ID=<id>] [AT_SANDBOX=true]
 ```
 
 Then merge to `main`; Vercel deploys the frontend.

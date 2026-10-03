@@ -2,7 +2,6 @@ import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -57,7 +56,6 @@ const App = () => (
       <AuthProvider>
         <PrivacyModeProvider>
           <TooltipProvider delayDuration={300}>
-            <Toaster />
             <Sonner richColors closeButton />
             <InactivityManager />
             <BrowserRouter>
