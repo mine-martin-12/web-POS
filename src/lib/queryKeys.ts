@@ -28,6 +28,7 @@ export const queryKeys = {
     all: ["credits"] as const,
     list: () => [...queryKeys.credits.all, "list"] as const,
     payments: (creditId: string) => [...queryKeys.credits.all, "payments", creditId] as const,
+    paymentsRange: (from: string, to: string) => [...queryKeys.credits.all, "payments-range", from, to] as const,
   },
   customers: {
     all: ["customers"] as const,

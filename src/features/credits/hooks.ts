@@ -5,9 +5,15 @@ import { creditOutstanding, fromCents } from "@/lib/finance";
 import { optimisticListUpdate } from "@/lib/optimistic";
 import { queryKeys } from "@/lib/queryKeys";
 import type { CreditListRow } from "./api";
-import { fetchCreditPayments, fetchCredits, recordCreditPayment } from "./api";
+import { fetchCreditPayments, fetchCredits, fetchPaymentsInRange, recordCreditPayment } from "./api";
 
 export const useCredits = () => useQuery({ queryKey: queryKeys.credits.list(), queryFn: fetchCredits });
+
+export const usePaymentsInRange = (from: string, to: string, timeZone: string) =>
+  useQuery({
+    queryKey: queryKeys.credits.paymentsRange(from, to),
+    queryFn: () => fetchPaymentsInRange(from, to, timeZone),
+  });
 
 export const useCreditPayments = (creditId: string | null) =>
   useQuery({

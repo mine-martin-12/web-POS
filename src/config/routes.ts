@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   ClipboardCheck,
   Contact,
   HandCoins,
@@ -90,6 +91,14 @@ export const APP_PAGES: AppPage[] = [
     description: "Invite staff and manage access",
     icon: Users,
     capability: "canManageUsers",
+    section: "admin",
+  },
+  {
+    path: "/app/reports",
+    title: "Reports",
+    description: "Trends, receivables, customers, expenses, products and payment methods",
+    icon: BarChart3,
+    capability: "canViewFinancialData",
     section: "admin",
   },
   {

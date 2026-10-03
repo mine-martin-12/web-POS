@@ -8,6 +8,7 @@ import { useUrlState } from "@/hooks/useUrlState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BarList } from "@/components/common/BarList";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Money } from "@/components/common/Money";
 import { QUICK_ACTIONS } from "@/config/routes";
@@ -250,7 +251,6 @@ function RankedCard({
   rows: Array<{ key: string; label: string; billed: number; count: number }>;
   loading: boolean;
 }) {
-  const max = Math.max(...rows.map((r) => r.billed), 1);
   return (
     <Card className="rounded-xl">
       <CardHeader>
@@ -259,25 +259,11 @@ function RankedCard({
       <CardContent>
         {loading ? (
           <Skeleton className="h-40 w-full" />
-        ) : rows.length === 0 ? (
-          <EmptyState icon={TrendingUp} title="Nothing sold in this period" variant="minimal" />
         ) : (
-          <ol className="space-y-3">
-            {rows.map((r, i) => (
-              <li key={r.key} className="space-y-1 animate-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
-                <div className="flex items-baseline justify-between gap-3 text-sm">
-                  <span className="truncate font-medium">{r.label}</span>
-                  <Money cents={r.billed} className="shrink-0" />
-                </div>
-                <div className="h-1.5 rounded-full bg-muted" aria-hidden>
-                  <div className="h-1.5 rounded-full bg-[hsl(var(--chart-1))]" style={{ width: `${(r.billed / max) * 100}%` }} />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {r.count} {r.count === 1 ? "sale" : "sales"}
-                </p>
-              </li>
-            ))}
-          </ol>
+          <BarList
+            items={rows.map((r) => ({ key: r.key, label: r.label, cents: r.billed, hint: `${r.count} ${r.count === 1 ? "sale" : "sales"}` }))}
+            emptyLabel="Nothing sold in this period"
+          />
         )}
       </CardContent>
     </Card>
