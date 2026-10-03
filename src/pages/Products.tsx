@@ -1,3 +1,7 @@
+import { useSecurity } from "@/hooks/useSecurity";
+import { Money } from "@/components/common/Money";
+import { useActionParam } from "@/hooks/useActionParam";
+import { getErrorMessage } from "@/lib/errors";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -81,6 +85,7 @@ interface Product {
 
 const Products: React.FC = () => {
   const { profile } = useAuth();
+  const { canDeleteRecords } = useSecurity();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,11 +123,12 @@ const Products: React.FC = () => {
       const { data, error } = await supabase
         .from("products")
         .select("*")
+        .is("archived_at", null)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       setProducts(data || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to load products",
@@ -180,10 +186,10 @@ const Products: React.FC = () => {
       setEditingProduct(null);
       form.reset();
       fetchProducts();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to save product",
+        description: getErrorMessage(error, "Failed to save product"),
         variant: "destructive",
       });
     }
@@ -198,12 +204,11 @@ const Products: React.FC = () => {
     const data = stockForm.getValues();
 
     try {
-      const { error } = await supabase
-        .from("products")
-        .update({
-          stock_quantity: stockProduct.stock_quantity + data.additional_stock,
-        })
-        .eq("id", stockProduct.id);
+      // Atomic server-side increment: concurrent sales can't be overwritten.
+      const { error } = await supabase.rpc("add_stock", {
+        _product_id: stockProduct.id,
+        _quantity: data.additional_stock,
+      });
 
       if (error) throw error;
 
@@ -217,7 +222,7 @@ const Products: React.FC = () => {
       setStockProduct(null);
       stockForm.reset();
       fetchProducts();
-    } catch (error: any) {
+    } catch (error) {
       setIsStockConfirmOpen(false);
       toast({
         title: "Error",
@@ -240,7 +245,7 @@ const Products: React.FC = () => {
   };
 
   const handleDeleteClick = (id: string) => {
-    if (profile?.role !== "admin") {
+    if (!canDeleteRecords) {
       toast({
         title: "Access Denied",
         description: "Only admins can delete products",
@@ -256,15 +261,16 @@ const Products: React.FC = () => {
     if (!productToDelete) return;
 
     try {
+      // Archive rather than delete so the product's sales history is kept.
       const { error } = await supabase
         .from("products")
-        .delete()
+        .update({ archived_at: new Date().toISOString() })
         .eq("id", productToDelete);
 
       if (error) throw error;
-      toast({ title: "Success", description: "Product deleted successfully" });
+      toast({ title: "Success", description: "Product archived" });
       fetchProducts();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to delete product",
@@ -329,6 +335,9 @@ const Products: React.FC = () => {
     setIsDialogOpen(true);
   };
 
+  // Quick actions (header button, command palette, mobile FAB) link here with ?new=1.
+  useActionParam("new", openAddDialog);
+
   const openStockDialog = (product: Product) => {
     setStockProduct(product);
     stockForm.reset({ additional_stock: 1 });
@@ -342,12 +351,6 @@ const Products: React.FC = () => {
     return { label: "In Stock", color: "default" as const };
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "KES",
-    }).format(amount);
-  };
 
   return (
     <div className="space-y-6">
@@ -425,12 +428,10 @@ const Products: React.FC = () => {
                         </TableCell>
                         <TableCell>{product.stock_quantity}</TableCell>
                         <TableCell>
-                          {formatCurrency(product.buying_price)}
+                          <Money value={product.buying_price} />
                         </TableCell>
                         <TableCell>
-                          {formatCurrency(
-                            product.buying_price * product.stock_quantity
-                          )}
+                          <Money value={product.buying_price * product.stock_quantity} />
                         </TableCell>
                         <TableCell>
                           {new Date(product.created_at).toLocaleDateString()}
@@ -451,7 +452,7 @@ const Products: React.FC = () => {
                             >
                               <Package className="h-4 w-4" />
                             </Button>
-                            {profile?.role === "admin" && (
+                            {canDeleteRecords && (
                               <Button
                                 variant="outline"
                                 size="sm"

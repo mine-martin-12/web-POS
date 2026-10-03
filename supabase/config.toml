@@ -22,5 +22,8 @@ enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
 
-[functions.admin-delete-user]
+[functions.invite-staff]
+verify_jwt = true
+
+[functions.manage-staff]
 verify_jwt = true

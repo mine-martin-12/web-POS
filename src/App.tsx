@@ -1,101 +1,109 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
 import AuthGuard from "@/components/auth/AuthGuard";
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import InactivityWrapper from "@/components/layout/InactivityWrapper";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import ResetPassword from "./pages/ResetPassword";
-import Dashboard from "./pages/Dashboard";
-import Products from "./pages/Products";
-import Sales from "./pages/Sales";
-import Credits from "./pages/Credits";
-import Users from "./pages/Users";
-import Settings from "./pages/Settings";
-import NotFound from "./pages/NotFound";
+import { PublicOnly } from "@/components/auth/PublicOnly";
+import { RoleBasedAccess } from "@/components/auth/RoleBasedAccess";
+import { BrandedSpinner } from "@/components/common/BrandedSpinner";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { InactivityManager } from "@/components/session/InactivityManager";
+import { PrivacyModeProvider } from "@/contexts/PrivacyModeContext";
+import { LEGACY_REDIRECTS } from "@/config/routes";
 
-const queryClient = new QueryClient();
+// Every page is code-split; the shell shows a branded spinner while one loads.
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Sales = lazy(() => import("./pages/Sales"));
+const Credits = lazy(() => import("./pages/Credits"));
+const Products = lazy(() => import("./pages/Products"));
+const Settings = lazy(() => import("./pages/Settings"));
+const StaffPage = lazy(() => import("./features/staff/pages/StaffPage"));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: true,
+      retry: 1,
+    },
+  },
+});
+
+/** /sales?new=1 → /app/sales?new=1 and so on: old links and bookmarks keep working. */
+function LegacyRedirect({ to }: { to: string }) {
+  const { search, hash } = useLocation();
+  return <Navigate to={`${to}${search}${hash}`} replace />;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="theme" disableTransitionOnChange>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              
-              {/* Protected routes */}
-              <Route path="/dashboard" element={
-                <AuthGuard>
-                  <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
-                    <DashboardLayout>
-                      <Dashboard />
-                    </DashboardLayout>
-                  </InactivityWrapper>
-                </AuthGuard>
-              } />
-              <Route path="/products" element={
-                <AuthGuard>
-                  <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
-                    <DashboardLayout>
-                      <Products />
-                    </DashboardLayout>
-                  </InactivityWrapper>
-                </AuthGuard>
-              } />
-              <Route path="/sales" element={
-                <AuthGuard>
-                  <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
-                    <DashboardLayout>
-                      <Sales />
-                    </DashboardLayout>
-                  </InactivityWrapper>
-                </AuthGuard>
-              } />
-              <Route path="/credits" element={
-                <AuthGuard>
-                  <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
-                    <DashboardLayout>
-                      <Credits />
-                    </DashboardLayout>
-                  </InactivityWrapper>
-                </AuthGuard>
-              } />
-              <Route path="/users" element={
-                <AuthGuard>
-                  <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
-                    <DashboardLayout>
-                      <Users />
-                    </DashboardLayout>
-                  </InactivityWrapper>
-                </AuthGuard>
-              } />
-              <Route path="/settings" element={
-                <AuthGuard>
-                  <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
-                    <DashboardLayout>
-                      <Settings />
-                    </DashboardLayout>
-                  </InactivityWrapper>
-                </AuthGuard>
-              } />
-              
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+        <PrivacyModeProvider>
+          <TooltipProvider delayDuration={300}>
+            <Toaster />
+            <Sonner richColors closeButton />
+            <InactivityManager />
+            <BrowserRouter>
+              <Suspense fallback={<BrandedSpinner fullScreen />}>
+                <Routes>
+                  {/* Public */}
+                  <Route
+                    path="/"
+                    element={
+                      <PublicOnly>
+                        <Index />
+                      </PublicOnly>
+                    }
+                  />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/accept-invite" element={<AcceptInvite />} />
+
+                  {/* Signed-in app */}
+                  <Route
+                    path="/app"
+                    element={
+                      <AuthGuard>
+                        <AppLayout />
+                      </AuthGuard>
+                    }
+                  >
+                    <Route index element={<Dashboard />} />
+                    <Route path="sales" element={<Sales />} />
+                    <Route path="credits" element={<Credits />} />
+                    <Route path="products" element={<Products />} />
+                    <Route
+                      path="staff"
+                      element={
+                        <RoleBasedAccess adminOnly>
+                          <StaffPage />
+                        </RoleBasedAccess>
+                      }
+                    />
+                    <Route path="settings" element={<Settings />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Route>
+
+                  {Object.entries(LEGACY_REDIRECTS).map(([from, to]) => (
+                    <Route key={from} path={from} element={<LegacyRedirect to={to} />} />
+                  ))}
+
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </TooltipProvider>
+        </PrivacyModeProvider>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>

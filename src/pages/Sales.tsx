@@ -1,3 +1,7 @@
+import { useSecurity } from "@/hooks/useSecurity";
+import { Money } from "@/components/common/Money";
+import { useActionParam } from "@/hooks/useActionParam";
+import { getErrorMessage } from "@/lib/errors";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,7 +80,7 @@ const saleSchema = z
         return isNaN(num) ? 0 : num;
       })
       .refine((val) => val >= 0, "Selling price must be non-negative"),
-    payment_method: z.enum(["cash", "mpesa", "bank", "credit"], {
+    payment_method: z.enum(["cash", "mpesa", "bank_cheque", "credit"], {
       required_error: "Payment method is required",
     }),
     description: z.string().optional(),
@@ -103,7 +107,7 @@ interface Sale {
   product_id: string;
   quantity: number;
   selling_price: number;
-  payment_method: "cash" | "mpesa" | "bank" | "credit";
+  payment_method: "cash" | "mpesa" | "bank_cheque" | "credit";
   total_price?: number;
   sale_date: string;
   description?: string;
@@ -135,7 +139,8 @@ interface Product {
 }
 
 const Sales: React.FC = () => {
-  const { profile } = useAuth();
+  const { profile, business } = useAuth();
+  const { canDeleteRecords } = useSecurity();
   const { toast } = useToast();
   const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -184,7 +189,7 @@ const Sales: React.FC = () => {
 
       if (error) throw error;
       setSales((data || []) as Sale[]);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to load sales",
@@ -204,7 +209,7 @@ const Sales: React.FC = () => {
 
       if (error) throw error;
       setProducts(data || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to load products",
@@ -290,7 +295,8 @@ const Sales: React.FC = () => {
           sale_id: saleId,
           customer_name: data.customer_name,
           amount_owed: data.quantity * data.selling_price,
-          due_date: data.due_date.toISOString(),
+          // Calendar date in local time; toISOString() would shift it to the previous UTC day.
+          due_date: format(data.due_date, "yyyy-MM-dd"),
         };
 
         if (editingSale) {
@@ -330,10 +336,10 @@ const Sales: React.FC = () => {
       form.reset();
       fetchSales();
       fetchProducts(); // Refresh products to show updated stock
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to save sale",
+        description: getErrorMessage(error, "Failed to save sale"),
         variant: "destructive",
       });
     }
@@ -366,7 +372,7 @@ const Sales: React.FC = () => {
   };
 
   const handleDeleteConfirm = (id: string) => {
-    if (profile?.role !== "admin") {
+    if (!canDeleteRecords) {
       toast({
         title: "Access Denied",
         description: "Only admins can delete sales",
@@ -392,7 +398,7 @@ const Sales: React.FC = () => {
       fetchSales();
       setIsDeleteConfirmOpen(false);
       setSaleToDelete(null);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to delete sale",
@@ -420,8 +426,8 @@ const Sales: React.FC = () => {
           ? (sale.selling_price - sale.products.buying_price) * sale.quantity
           : 0;
         let profitStatus = "Realized";
-        if (sale.payment_method === "credit" && (sale as any).credits?.[0]) {
-          const credit = (sale as any).credits[0];
+        if (sale.payment_method === "credit" && sale.credits?.[0]) {
+          const credit = sale.credits[0];
           const amountPaid = Number(credit.amount_paid) || 0;
           const amountOwed = Number(credit.amount_owed) || 0;
           const paymentPercentage =
@@ -442,7 +448,7 @@ const Sales: React.FC = () => {
           sale.total_price || sale.quantity * sale.selling_price,
           sale.payment_method === "mpesa"
             ? "M-Pesa"
-            : sale.payment_method === "bank"
+            : sale.payment_method === "bank_cheque"
             ? "Bank/Cheque"
             : sale.payment_method === "credit"
             ? "Credit Sale"
@@ -487,7 +493,13 @@ const Sales: React.FC = () => {
       product_name: saleToprint.products?.name || "Unknown Product",
     };
 
-    root.render(<Receipt sale={saleWithProduct} />);
+    root.render(
+      <Receipt
+        sale={saleWithProduct}
+        businessInfo={{ name: business?.name ?? "Smart POS", address: business?.address, phone: business?.phone }}
+        currency={business?.currency ?? "KES"}
+      />,
+    );
 
     // Wait for render to complete
     setTimeout(() => {
@@ -516,12 +528,9 @@ const Sales: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "KES",
-    }).format(amount);
-  };
+  // Quick actions (header button, command palette, mobile FAB) link here with ?new=1.
+  useActionParam("new", openAddDialog);
+
 
   return (
     <div className="space-y-6">
@@ -590,19 +599,17 @@ const Sales: React.FC = () => {
                       </TableCell>
                       <TableCell>{sale.quantity}</TableCell>
                       <TableCell>
-                        {formatCurrency(sale.selling_price)}
+                        <Money value={sale.selling_price} />
                       </TableCell>
                       <TableCell>
-                        {formatCurrency(
-                          sale.total_price || sale.quantity * sale.selling_price
-                        )}
+                        <Money value={sale.total_price || sale.quantity * sale.selling_price} />
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           {sale.payment_method === "credit" &&
-                          (sale as any).credits?.[0] ? (
+                          sale.credits?.[0] ? (
                             (() => {
-                              const credit = (sale as any).credits[0];
+                              const credit = sale.credits[0];
                               const amountPaid =
                                 Number(credit.amount_paid) || 0;
                               const amountOwed =
@@ -631,8 +638,8 @@ const Sales: React.FC = () => {
                                   </span>
                                   {paymentPercentage < 100 && (
                                     <span className="text-xs text-muted-foreground">
-                                      {formatCurrency(amountPaid)} /{" "}
-                                      {formatCurrency(amountOwed)}
+                                      <Money value={amountPaid} /> /{" "}
+                                      <Money value={amountOwed} />
                                     </span>
                                   )}
                                 </>
@@ -650,7 +657,7 @@ const Sales: React.FC = () => {
                               <span className="text-xs text-muted-foreground">
                                 {sale.payment_method === "mpesa"
                                   ? "M-Pesa"
-                                  : sale.payment_method === "bank"
+                                  : sale.payment_method === "bank_cheque"
                                   ? "Bank/Cheque"
                                   : "Cash"}
                               </span>
@@ -661,9 +668,9 @@ const Sales: React.FC = () => {
                       <TableCell>
                         <div className="flex flex-col">
                           {sale.payment_method === "credit" &&
-                          (sale as any).credits?.[0] ? (
+                          sale.credits?.[0] ? (
                             (() => {
-                              const credit = (sale as any).credits[0];
+                              const credit = sale.credits[0];
                               const amountPaid =
                                 Number(credit.amount_paid) || 0;
                               const amountOwed =
@@ -687,7 +694,7 @@ const Sales: React.FC = () => {
                                           : "text-red-600 dark:text-red-400"
                                       }
                                     >
-                                      {formatCurrency(actualProfit)}
+                                      <Money value={actualProfit} />
                                     </span>
                                     <span className="text-xs text-green-600 dark:text-green-400">
                                       Actual
@@ -696,7 +703,7 @@ const Sales: React.FC = () => {
                                   {pendingProfit > 0 && (
                                     <div className="flex items-center gap-1">
                                       <span className="text-orange-600 dark:text-orange-400">
-                                        {formatCurrency(pendingProfit)}
+                                        <Money value={pendingProfit} />
                                       </span>
                                       <span className="text-xs text-orange-600 dark:text-orange-400">
                                         Pending
@@ -714,7 +721,7 @@ const Sales: React.FC = () => {
                                   : "text-red-600 dark:text-red-400"
                               }
                             >
-                              {formatCurrency(calculateProfit(sale))}
+                              <Money value={calculateProfit(sale)} />
                               {sale.payment_method === "credit" && (
                                 <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">
                                   Pending
@@ -745,7 +752,7 @@ const Sales: React.FC = () => {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          {profile?.role === "admin" && (
+                          {canDeleteRecords && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -882,7 +889,7 @@ const Sales: React.FC = () => {
                       <SelectContent>
                         <SelectItem value="cash">Cash</SelectItem>
                         <SelectItem value="mpesa">M-Pesa</SelectItem>
-                        <SelectItem value="bank">Bank/Cheque</SelectItem>
+                        <SelectItem value="bank_cheque">Bank/Cheque</SelectItem>
                         <SelectItem value="credit">Credit</SelectItem>
                       </SelectContent>
                     </Select>

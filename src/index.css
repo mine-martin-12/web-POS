@@ -64,21 +64,14 @@
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 225 15% 25%;
+    --sidebar-primary: 220 70% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 70% 96%;
+    --sidebar-accent-foreground: 220 70% 38%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 220 70% 50%;
   }
 
   .dark {
@@ -137,14 +130,14 @@
     --shadow-elegant: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
     --shadow-card: 0 2px 12px -2px hsl(0 0% 0% / 0.15);
     --shadow-glow: 0 0 30px hsl(220 70% 55% / 0.4);
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-background: 225 15% 10%;
+    --sidebar-foreground: 210 30% 88%;
+    --sidebar-primary: 220 70% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 220 40% 18%;
+    --sidebar-accent-foreground: 220 90% 82%;
+    --sidebar-border: 225 15% 18%;
+    --sidebar-ring: 220 70% 60%;
   }
 }
 
@@ -231,4 +224,24 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+/* -------------------------------------------------------------------------------------
+ * Privacy mode (data-privacy="on" on <html>, see PrivacyModeContext): blur every amount
+ * and every chart value so the screen can be used in front of customers.
+ * ----------------------------------------------------------------------------------- */
+.sensitive,
+.recharts-cartesian-axis-tick-value,
+.recharts-tooltip-wrapper,
+.recharts-label,
+.recharts-label-list {
+  transition: filter 0.2s ease;
+}
+
+[data-privacy="on"] .sensitive,
+[data-privacy="on"] .recharts-yAxis .recharts-cartesian-axis-tick-value,
+[data-privacy="on"] .recharts-tooltip-wrapper,
+[data-privacy="on"] .recharts-label,
+[data-privacy="on"] .recharts-label-list {
+  filter: blur(6px);
+  user-select: none;
 }

@@ -1,29 +1,23 @@
-# Welcome to your Web-app POS project
+# Smart POS
 
-Follow these steps:
+Point-of-sale and back-office web app for small businesses. Use it to record sales and customer credits, track stock, and manage your team.
+
+## Getting started
 
 ```sh
-# Step 1: Clone the repository.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install dependencies.
-npm i
-
-# Step 4: Start the development server.
-npm run dev
+npm install
+cp .env.example .env.local   # optional: defaults point at the hosted Supabase project
+npm run dev                  # http://localhost:8080
 ```
 
-**Use GitHub Codespaces**
+## Scripts
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the dev server |
+| `npm run check` | Lint, typecheck, edge-function typecheck, tests, production build |
+| `npm test` | Unit tests and database security tests (real migrations in PGlite) |
+| `npm run db:types` | Regenerate Supabase TypeScript types from the migrations |
+| `npm run check:functions` | Type-check the Supabase edge functions with Deno |
 
-## What Exciting Technologies Power This Project?
-
-This project is built using some cool tech: Vite, TypeScript, React, shadcn-ui, and Tailwind CSS.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the folder map, the security model, how to add a feature, and deployment steps.
