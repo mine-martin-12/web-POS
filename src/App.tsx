@@ -5,7 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ThemeProvider } from "next-themes";
+import { RoleBasedAccess } from "@/components/auth/RoleBasedAccess";
 import AuthGuard from "@/components/auth/AuthGuard";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import InactivityWrapper from "@/components/layout/InactivityWrapper";
@@ -25,7 +26,7 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="theme" disableTransitionOnChange>
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
@@ -78,7 +79,9 @@ const App = () => (
                 <AuthGuard>
                   <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
                     <DashboardLayout>
-                      <StaffPage />
+                      <RoleBasedAccess adminOnly>
+                        <StaffPage />
+                      </RoleBasedAccess>
                     </DashboardLayout>
                   </InactivityWrapper>
                 </AuthGuard>

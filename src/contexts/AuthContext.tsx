@@ -51,7 +51,7 @@ const DUPLICATE_EVENT_WINDOW_MS = 100;
 function isRecoveryUrl(): boolean {
   const hash = new URLSearchParams(window.location.hash.substring(1));
   const query = new URLSearchParams(window.location.search);
-  return (hash.get("type") ?? query.get("type")) === "recovery" || window.location.pathname === "/reset-password";
+  return (hash.get("type") ?? query.get("type")) === "recovery";
 }
 
 interface LoadedAccount {
@@ -146,7 +146,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastEvent.current = { key, at: now };
 
       if (event === "PASSWORD_RECOVERY") setIsRecoveryMode(true);
-      if (event === "SIGNED_OUT") setIsRecoveryMode(false);
+      // Recovery ends once the new password is saved (or the user signs out).
+      if (event === "SIGNED_OUT" || event === "USER_UPDATED") setIsRecoveryMode(false);
       setSession(next);
       // Never await Supabase calls inside this callback (it holds the auth lock).
       setTimeout(() => {

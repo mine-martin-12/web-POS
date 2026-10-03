@@ -1,157 +1,104 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { toast } from "sonner";
+import { MailCheck } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form } from "@/components/ui/form";
+import { TextField } from "@/components/common/form-fields";
+import { emailField } from "@/lib/validation";
+
+const schema = z.object({ email: emailField });
+type FormData = z.infer<typeof schema>;
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultEmail?: string;
 }
 
-const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClose }) => {
-  const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isEmailSent, setIsEmailSent] = useState(false);
-  const { toast } = useToast();
+const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClose, defaultEmail = "" }) => {
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const form = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: defaultEmail },
+    reValidateMode: "onSubmit",
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email) {
-      toast({
-        title: "Error",
-        description: "Please enter your email address",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        toast({
-          title: "Invalid Email",
-          description: "Please enter a valid email address",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const redirectUrl = `${window.location.origin}/reset-password`;
-      console.log('ForgotPasswordModal - Sending reset email with redirect:', redirectUrl);
-      
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
-      });
-      
-      console.log('ForgotPasswordModal - Reset email response:', { error });
-
-      if (error) {
-        // Handle specific error cases
-        if (error.message.includes('rate limit')) {
-          toast({
-            title: "Too Many Requests",
-            description: "Please wait a moment before requesting another reset link.",
-            variant: "destructive",
-          });
-        } else if (error.message.includes('not found')) {
-          toast({
-            title: "Email Not Found",
-            description: "No account found with this email address.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
-      } else {
-        setIsEmailSent(true);
-        toast({
-          title: "Reset Link Sent",
-          description: "Please check your email for the password reset link. The link will expire in 24 hours.",
-          duration: 5000,
-        });
-      }
-    } catch (error) {
-      console.error('Reset password error:', error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleClose = () => {
-    setEmail('');
-    setIsEmailSent(false);
+  const close = () => {
+    form.reset({ email: defaultEmail });
+    setSentTo(null);
     onClose();
   };
 
+  const onSubmit = async ({ email }: FormData) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) {
+      toast.error("Couldn't send the reset link", {
+        description: /rate limit/i.test(error.message)
+          ? "Too many requests. Please wait a minute and try again."
+          : error.message,
+      });
+      return;
+    }
+    // Same message whether or not the account exists, so emails can't be probed.
+    setSentTo(email);
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Reset Password</DialogTitle>
+          <DialogTitle>Reset your password</DialogTitle>
+          <DialogDescription>
+            {sentTo
+              ? "Check your inbox for the reset link."
+              : "Enter your email and we'll send you a link to choose a new password."}
+          </DialogDescription>
         </DialogHeader>
-        
-        {!isEmailSent ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="reset-email">Email Address</Label>
-              <Input
-                id="reset-email"
-                type="email"
-                placeholder="Enter your email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <p className="text-sm text-muted-foreground">
-                Enter your email address and we'll send you a link to reset your password.
-              </p>
-            </div>
-            
-            <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={handleClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Send Reset Link
-              </Button>
-            </div>
-          </form>
-        ) : (
+
+        {sentTo ? (
           <div className="space-y-4">
-            <div className="text-center space-y-2">
-              <div className="text-green-600 dark:text-green-400 text-lg font-medium">
-                Email Sent Successfully!
-              </div>
+            <div className="flex flex-col items-center gap-3 py-2 text-center">
+              <MailCheck className="h-10 w-10 text-success" aria-hidden />
               <p className="text-sm text-muted-foreground">
-                We've sent a password reset link to <strong>{email}</strong>.
-                Please check your email and follow the instructions to reset your password.
+                If an account exists for <strong className="text-foreground">{sentTo}</strong>, a reset link is on
+                its way. It expires in one hour.
               </p>
             </div>
-            
-            <div className="flex justify-center">
-              <Button onClick={handleClose}>
+            <DialogFooter>
+              <Button onClick={close} className="w-full sm:w-auto">
                 Close
               </Button>
-            </div>
+            </DialogFooter>
           </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+              <TextField
+                control={form.control}
+                clearErrors={form.clearErrors}
+                name="email"
+                label="Email address"
+                type="email"
+                autoComplete="email"
+                autoFocus
+              />
+              <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:gap-0">
+                <Button type="button" variant="outline" onClick={close}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? "Sending…" : "Send reset link"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         )}
       </DialogContent>
     </Dialog>

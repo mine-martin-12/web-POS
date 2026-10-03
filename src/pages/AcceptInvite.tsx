@@ -4,7 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
-import { Building2, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { AuthShell } from "@/components/auth/AuthShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/errors";
@@ -59,14 +60,7 @@ const AcceptInvite: React.FC = () => {
   const password = form.watch("password");
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
-      <div className="w-full max-w-md animate-fade-in-up">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-primary rounded-2xl mb-4 shadow-glow">
-            <Building2 className="h-8 w-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-foreground">Smart POS</h1>
-        </div>
+    <AuthShell subtitle="Accept your invitation">
 
         {isLoading || isLoadingRole ? (
           <Card>
@@ -146,8 +140,7 @@ const AcceptInvite: React.FC = () => {
             </CardContent>
           </Card>
         )}
-      </div>
-    </div>
+    </AuthShell>
   );
 };
 
