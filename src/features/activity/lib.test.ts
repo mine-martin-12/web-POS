@@ -17,7 +17,8 @@ const base: ActivityLog = {
 describe("activity summaries", () => {
   it("shows a single changed field as before → after, with money formatted", () => {
     const log = { ...base, old_values: { selling_price: 50 }, new_values: { selling_price: 45 } };
-    expect(summarize(log, "KES")).toBe("Selling price: KES 50.00 → KES 45.00");
+    // Intl separates the currency code with a non-breaking space.
+    expect(summarize(log, "KES").replace(/ /g, " ")).toBe("Selling price: KES 50.00 → KES 45.00");
   });
 
   it("lists several changed fields", () => {
