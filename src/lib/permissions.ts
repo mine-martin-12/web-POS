@@ -12,6 +12,8 @@ export const CAPABILITIES = [
   "canManageBusiness",
   "canViewFinancialData",
   "canDeleteRecords",
+  /** Edit saved sales, credits and products directly (staff request changes instead). */
+  "canEditRecords",
   "canBulkOperations",
   "canViewCustomerPhone",
   "canReviewChanges",

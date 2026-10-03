@@ -11,6 +11,7 @@ const HIDDEN_ON = ["/app/settings", "/app/reports", "/app/activity"];
 /** Which quick action the button triggers on each page; anything else records a sale. */
 const ACTION_FOR_PAGE: Record<string, QuickAction["id"]> = {
   "/app/products": "new-product",
+  "/app/customers": "new-customer",
   "/app/staff": "invite-member",
 };
 

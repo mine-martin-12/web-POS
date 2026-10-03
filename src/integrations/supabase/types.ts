@@ -14,8 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          business_id: string
+          created_at: string
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          reason: string | null
+          record_id: string | null
+          search_text: string | null
+          table_name: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          business_id: string
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          reason?: string | null
+          record_id?: string | null
+          search_text?: never
+          table_name: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          business_id?: string
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          reason?: string | null
+          record_id?: string | null
+          search_text?: never
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
+          account_status: string
           address: string | null
           created_at: string
           currency: string
@@ -24,9 +75,11 @@ export type Database = {
           name: string
           phone: string | null
           timezone: string
+          trial_ends_at: string | null
           updated_at: string
         }
         Insert: {
+          account_status?: string
           address?: string | null
           created_at?: string
           currency?: string
@@ -35,9 +88,11 @@ export type Database = {
           name: string
           phone?: string | null
           timezone?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Update: {
+          account_status?: string
           address?: string | null
           created_at?: string
           currency?: string
@@ -46,6 +101,7 @@ export type Database = {
           name?: string
           phone?: string | null
           timezone?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -105,6 +161,7 @@ export type Database = {
           business_id: string
           created_at: string
           created_by: string | null
+          customer_id: string | null
           customer_name: string
           due_date: string
           id: string
@@ -118,6 +175,7 @@ export type Database = {
           business_id: string
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           customer_name: string
           due_date: string
           id?: string
@@ -131,6 +189,7 @@ export type Database = {
           business_id?: string
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           customer_name?: string
           due_date?: string
           id?: string
@@ -147,10 +206,61 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "credits_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "credits_sale_id_fkey"
             columns: ["sale_id"]
             isOneToOne: false
             referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          archived_at: string | null
+          business_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
@@ -211,6 +321,68 @@ export type Database = {
           },
         ]
       }
+      pending_updates: {
+        Row: {
+          admin_note: string | null
+          archived_at: string | null
+          business_id: string
+          id: string
+          new_values: Json
+          old_values: Json
+          reason: string
+          record_id: string
+          requested_at: string
+          requested_by: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["change_status"]
+          table_name: string
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          archived_at?: string | null
+          business_id: string
+          id?: string
+          new_values: Json
+          old_values: Json
+          reason: string
+          record_id: string
+          requested_at?: string
+          requested_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["change_status"]
+          table_name: string
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          archived_at?: string | null
+          business_id?: string
+          id?: string
+          new_values?: Json
+          old_values?: Json
+          reason?: string
+          record_id?: string
+          requested_at?: string
+          requested_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["change_status"]
+          table_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_updates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           archived_at: string | null
@@ -228,7 +400,7 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
-          business_id: string
+          business_id?: string
           buying_price?: number
           created_at?: string
           created_by?: string | null
@@ -316,6 +488,7 @@ export type Database = {
           business_id: string
           created_at: string
           created_by: string | null
+          customer_id: string | null
           description: string | null
           id: string
           payment_method: string
@@ -331,6 +504,7 @@ export type Database = {
           business_id: string
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           description?: string | null
           id?: string
           payment_method?: string
@@ -346,6 +520,7 @@ export type Database = {
           business_id?: string
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           description?: string | null
           id?: string
           payment_method?: string
@@ -363,6 +538,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {
@@ -411,16 +593,41 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      customers_secure: {
+        Row: {
+          archived_at: string | null
+          business_id: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string | null
+          name: string | null
+          notes: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_stock: {
         Args: { _product_id: string; _quantity: number }
         Returns: Database["public"]["Tables"]["products"]["Row"]
       }
+      archive_change: {
+        Args: { _id: string; _archived?: boolean }
+        Returns: Database["public"]["Tables"]["pending_updates"]["Row"]
+      }
+      business_is_active: {
+        Args: { _business: string }
+        Returns: boolean
+      }
       complete_invitation: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      create_customer: {
+        Args: { _name: string; _phone?: string; _notes?: string; _force?: boolean }
+        Returns: Json
       }
       get_current_user_business_id: {
         Args: Record<PropertyKey, never>
@@ -429,6 +636,10 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_member_business: {
+        Args: { _user_id: string }
+        Returns: string
       }
       get_user_business: {
         Args: { _user_id: string }
@@ -446,17 +657,58 @@ export type Database = {
         Args: { _name: string }
         Returns: boolean
       }
+      mask_phone: {
+        Args: { _phone: string }
+        Returns: string
+      }
+      normalize_phone: {
+        Args: { _raw: string; _default_country?: string }
+        Returns: string
+      }
       record_credit_payment: {
         Args: { _credit_id: string; _amount: number; _payment_method?: string }
         Returns: Database["public"]["Tables"]["credits"]["Row"]
+      }
+      record_sale: {
+        Args: { _product_id: string; _quantity: number; _selling_price: number; _payment_type?: string; _payment_method?: string; _deposit?: number; _due_date?: string; _customer_id?: string; _sale_day?: string; _description?: string }
+        Returns: Database["public"]["Tables"]["sales"]["Row"]
+      }
+      resubmit_change: {
+        Args: { _id: string; _new_values: Json; _reason: string }
+        Returns: Database["public"]["Tables"]["pending_updates"]["Row"]
+      }
+      review_change: {
+        Args: { _id: string; _decision: string; _note?: string }
+        Returns: Database["public"]["Tables"]["pending_updates"]["Row"]
+      }
+      sale_timestamp: {
+        Args: { _day: string; _tz: string }
+        Returns: string
+      }
+      search_customers: {
+        Args: { _query?: string; _limit?: number }
+        Returns: Database["public"]["Views"]["customers_secure"]["Row"][]
+      }
+      submit_change: {
+        Args: { _table: string; _record_id: string; _new_values: Json; _reason: string }
+        Returns: Database["public"]["Tables"]["pending_updates"]["Row"]
       }
       update_business_details: {
         Args: { _name: string; _phone?: string; _email?: string; _address?: string; _currency?: string; _timezone?: string }
         Returns: Database["public"]["Tables"]["businesses"]["Row"]
       }
+      update_product: {
+        Args: { _product_id: string; _changes: Json }
+        Returns: undefined
+      }
+      update_sale: {
+        Args: { _sale_id: string; _changes: Json; _reason?: string }
+        Returns: Database["public"]["Tables"]["sales"]["Row"]
+      }
     }
     Enums: {
       app_role: "admin" | "user"
+      change_status: "pending" | "approved" | "sent_back_for_review" | "rejected"
       credit_status: "unpaid" | "partially_paid" | "paid"
     }
     CompositeTypes: {
@@ -586,6 +838,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      change_status: ["pending", "approved", "sent_back_for_review", "rejected"],
       credit_status: ["unpaid", "partially_paid", "paid"],
     },
   },

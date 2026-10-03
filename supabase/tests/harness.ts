@@ -148,3 +148,46 @@ export async function createProduct(
   );
   return id;
 }
+
+export interface SaleOptions {
+  quantity?: number;
+  price?: number;
+  type?: "paid" | "partial" | "credit";
+  method?: "cash" | "mpesa" | "bank_cheque";
+  deposit?: number;
+  dueDate?: string;
+  customerId?: string | null;
+  saleDay?: string | null;
+}
+
+/** Record a sale through record_sale() as `userId`; returns the sale id. */
+export async function recordSale(db: Db, userId: string, productId: string, options: SaleOptions = {}): Promise<string> {
+  const [{ id }] = await asUser(db, userId, () =>
+    rows<{ id: string }>(
+      db,
+      `SELECT id FROM record_sale(
+         _product_id => $1, _quantity => $2, _selling_price => $3, _payment_type => $4,
+         _payment_method => $5, _deposit => $6, _due_date => $7, _customer_id => $8, _sale_day => $9)`,
+      [
+        productId,
+        options.quantity ?? 1,
+        options.price ?? 100,
+        options.type ?? "paid",
+        options.method ?? "cash",
+        options.deposit ?? 0,
+        options.dueDate ?? (options.type && options.type !== "paid" ? "2099-01-01" : null),
+        options.customerId ?? null,
+        options.saleDay ?? null,
+      ],
+    ),
+  );
+  return id;
+}
+
+/** Create a customer as `userId` (skipping duplicate prompts); returns its id. */
+export async function createCustomerAs(db: Db, userId: string, name: string, phone: string | null = null): Promise<string> {
+  const [{ result }] = await asUser(db, userId, () =>
+    rows<{ result: { customer: { id: string } } }>(db, "SELECT create_customer($1, $2, NULL, true) AS result", [name, phone]),
+  );
+  return result.customer.id;
+}

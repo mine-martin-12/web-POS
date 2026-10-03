@@ -2,7 +2,10 @@ import React, { useState, useEffect } from "react";
 import { formatMoney } from "@/lib/currency";
 import { Money } from "@/components/common/Money";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { DEFAULT_TIME_ZONE, formatLocalDayKey } from "@/lib/dates";
+import { getErrorMessage } from "@/lib/errors";
+import { useDashboardMetrics } from "@/features/dashboard/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -11,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { format, subDays } from "date-fns";
 import {
   CalendarIcon,
   TrendingUp,
@@ -32,36 +35,11 @@ import {
   Bar,
 } from "recharts";
 import { cn } from "@/lib/utils";
-import { GrowthIndicator } from "@/components/ui/growth-indicator";
-
-interface DashboardMetrics {
-  totalSalesAmount: number;
-  actualRevenue: number;
-  pendingRevenue: number;
-  totalSalesCount: number;
-  paidSalesCount: number;
-  creditSalesCount: number;
-  totalProfit: number;
-  actualProfit: number;
-  pendingProfit: number;
-  averageSale: number;
-  actualRevenueGrowth: number;
-  pendingRevenueGrowth: number;
-  totalSalesCountGrowth: number;
-  totalProfitGrowth: number;
-  actualProfitGrowth: number;
-  pendingProfitGrowth: number;
-  averageSaleGrowth: number;
-  comparisonPeriodLabel: string;
-  topProducts: Array<{ name: string; totalSales: number; quantity: number }>;
-  bottomProducts: Array<{ name: string; totalSales: number; quantity: number }>;
-  salesChart: Array<{ date: string; sales: number; profit: number; actualSales: number; actualProfit: number }>;
-}
+import { GrowthIndicator } from "@/components/common/GrowthIndicator";
 
 const Dashboard = () => {
   const { profile, business } = useAuth();
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [rangeOpen, setRangeOpen] = useState(false);
   const [dateRange, setDateRange] = useState<{
     from: Date;
     to: Date;
@@ -70,289 +48,19 @@ const Dashboard = () => {
     to: new Date(),
   });
 
-  const fetchDashboardData = async () => {
-    if (!profile?.business_id) return;
-
-    setIsLoading(true);
-    try {
-      const fromDate = startOfDay(dateRange.from);
-      const toDate = endOfDay(dateRange.to);
-
-      // Fetch sales data with credit information
-      const { data: salesData, error: salesError } = await supabase
-        .from("sales")
-        .select(
-          `
-          id,
-          quantity,
-          selling_price,
-          total_price,
-          sale_date,
-          payment_method,
-          products (
-            id,
-            name,
-            buying_price
-          ),
-          credits (
-            amount_paid,
-            amount_owed,
-            status
-          )
-        `
-        )
-        .eq("business_id", profile.business_id)
-        .gte("sale_date", fromDate.toISOString())
-        .lte("sale_date", toDate.toISOString())
-        .order("sale_date", { ascending: true });
-
-      if (salesError) throw salesError;
-
-      // Calculate metrics with partial payment support
-      let totalSalesAmount = 0;
-      let actualRevenue = 0;
-      let pendingRevenue = 0;
-      let totalProfit = 0;
-      let actualProfit = 0;
-      let pendingProfit = 0;
-      
-      const totalSalesCount = salesData?.length || 0;
-      let paidSalesCount = 0;
-      let creditSalesCount = 0;
-
-      salesData?.forEach(sale => {
-        const totalPrice = Number(sale.total_price) || 0;
-        const buyingPrice = Number(sale.products?.buying_price) || 0;
-        const sellingPrice = Number(sale.selling_price) || 0;
-        const quantity = Number(sale.quantity) || 0;
-        const saleProfit = (sellingPrice - buyingPrice) * quantity;
-
-        totalSalesAmount += totalPrice;
-        totalProfit += saleProfit;
-
-        if (sale.payment_method === 'credit' && sale.credits?.[0]) {
-          // Credit sale with payment tracking
-          const amountPaid = Number(sale.credits[0].amount_paid) || 0;
-          const amountOwed = Number(sale.credits[0].amount_owed) || 0;
-          const paymentPercentage = amountOwed > 0 ? amountPaid / amountOwed : 0;
-
-          const paidRevenue = totalPrice * paymentPercentage;
-          const unpaidRevenue = totalPrice * (1 - paymentPercentage);
-          const paidProfit = saleProfit * paymentPercentage;
-          const unpaidProfit = saleProfit * (1 - paymentPercentage);
-
-          actualRevenue += paidRevenue;
-          pendingRevenue += unpaidRevenue;
-          actualProfit += paidProfit;
-          pendingProfit += unpaidProfit;
-
-          if (paymentPercentage >= 1) {
-            paidSalesCount++;
-          } else {
-            creditSalesCount++;
-          }
-        } else if (sale.payment_method !== 'credit') {
-          // Fully paid sale
-          actualRevenue += totalPrice;
-          actualProfit += saleProfit;
-          paidSalesCount++;
-        } else {
-          // Credit sale without credit record (fallback)
-          pendingRevenue += totalPrice;
-          pendingProfit += saleProfit;
-          creditSalesCount++;
-        }
-      });
-
-      const averageSale =
-        totalSalesCount > 0 ? totalSalesAmount / totalSalesCount : 0;
-
-      // Calculate sales growth (compare with previous period)
-      const periodLength = Math.ceil(
-        (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      const prevFromDate = subDays(fromDate, periodLength);
-      const prevToDate = subDays(toDate, periodLength);
-
-      const { data: prevSalesData } = await supabase
-        .from("sales")
-        .select("total_price, payment_method")
-        .eq("business_id", profile.business_id)
-        .gte("sale_date", prevFromDate.toISOString())
-        .lte("sale_date", prevToDate.toISOString());
-
-      // Calculate growth based on previous period metrics
-      const { data: prevSalesWithCredits } = await supabase
-        .from("sales")
-        .select(`
-          total_price,
-          quantity,
-          selling_price,
-          payment_method,
-          products (buying_price),
-          credits (amount_paid, amount_owed)
-        `)
-        .eq("business_id", profile.business_id)
-        .gte("sale_date", prevFromDate.toISOString())
-        .lte("sale_date", prevToDate.toISOString());
-
-      // Calculate previous period metrics
-      let prevTotalSalesAmount = 0;
-      let prevActualRevenue = 0;
-      let prevPendingRevenue = 0;
-      let prevTotalProfit = 0;
-      let prevActualProfit = 0;
-      let prevPendingProfit = 0;
-      const prevTotalSalesCount = prevSalesWithCredits?.length || 0;
-
-      prevSalesWithCredits?.forEach(sale => {
-        const totalPrice = Number(sale.total_price) || 0;
-        const buyingPrice = Number(sale.products?.buying_price) || 0;
-        const sellingPrice = Number(sale.selling_price) || 0;
-        const quantity = Number(sale.quantity) || 0;
-        const saleProfit = (sellingPrice - buyingPrice) * quantity;
-
-        prevTotalSalesAmount += totalPrice;
-        prevTotalProfit += saleProfit;
-
-        if (sale.payment_method === 'credit' && sale.credits?.[0]) {
-          const amountPaid = Number(sale.credits[0].amount_paid) || 0;
-          const amountOwed = Number(sale.credits[0].amount_owed) || 0;
-          const paymentPercentage = amountOwed > 0 ? amountPaid / amountOwed : 0;
-
-          const paidRevenue = totalPrice * paymentPercentage;
-          const unpaidRevenue = totalPrice * (1 - paymentPercentage);
-          const paidProfit = saleProfit * paymentPercentage;
-          const unpaidProfit = saleProfit * (1 - paymentPercentage);
-
-          prevActualRevenue += paidRevenue;
-          prevPendingRevenue += unpaidRevenue;
-          prevActualProfit += paidProfit;
-          prevPendingProfit += unpaidProfit;
-        } else if (sale.payment_method !== 'credit') {
-          prevActualRevenue += totalPrice;
-          prevActualProfit += saleProfit;
-        } else {
-          prevPendingRevenue += totalPrice;
-          prevPendingProfit += saleProfit;
-        }
-      });
-
-      const prevAverageSale = prevTotalSalesCount > 0 ? prevTotalSalesAmount / prevTotalSalesCount : 0;
-
-      // Calculate growth rates
-      const calculateGrowth = (current: number, previous: number) => {
-        if (previous === 0) return current > 0 ? 100 : 0;
-        return ((current - previous) / previous) * 100;
-      };
-
-      const actualRevenueGrowth = calculateGrowth(actualRevenue, prevActualRevenue);
-      const pendingRevenueGrowth = calculateGrowth(pendingRevenue, prevPendingRevenue);
-      const totalSalesCountGrowth = calculateGrowth(totalSalesCount, prevTotalSalesCount);
-      const totalProfitGrowth = calculateGrowth(totalProfit, prevTotalProfit);
-      const actualProfitGrowth = calculateGrowth(actualProfit, prevActualProfit);
-      const pendingProfitGrowth = calculateGrowth(pendingProfit, prevPendingProfit);
-      const averageSaleGrowth = calculateGrowth(averageSale, prevAverageSale);
-
-      // Generate comparison period label
-      const comparisonPeriodLabel = `vs previous ${periodLength} day${periodLength !== 1 ? 's' : ''}`;
-
-      // Top and bottom products
-      const productSales =
-        salesData?.reduce((acc, sale) => {
-          const productName = sale.products?.name || "Unknown Product";
-          if (!acc[productName]) {
-            acc[productName] = { totalSales: 0, quantity: 0 };
-          }
-          acc[productName].totalSales += Number(sale.total_price);
-          acc[productName].quantity += Number(sale.quantity);
-          return acc;
-        }, {} as Record<string, { totalSales: number; quantity: number }>) ||
-        {};
-
-      const sortedProducts = Object.entries(productSales)
-        .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => b.totalSales - a.totalSales);
-
-      const topProducts = sortedProducts.slice(0, 10);
-      const bottomProducts = sortedProducts.slice(-10).reverse();
-
-      // Sales chart data (group by day) - separate actual and total
-      const salesByDate =
-        salesData?.reduce((acc, sale) => {
-          const date = format(new Date(sale.sale_date), "yyyy-MM-dd");
-          if (!acc[date]) {
-            acc[date] = { sales: 0, profit: 0, actualSales: 0, actualProfit: 0 };
-          }
-          
-          const saleAmount = Number(sale.total_price);
-          const buyingPrice = Number(sale.products?.buying_price) || 0;
-          const sellingPrice = Number(sale.selling_price) || 0;
-          const quantity = Number(sale.quantity) || 0;
-          const profitPerUnit = sellingPrice - buyingPrice;
-          const saleProfit = profitPerUnit * quantity;
-
-          acc[date].sales += saleAmount;
-          acc[date].profit += saleProfit;
-
-          // Calculate actual metrics based on payment percentage
-          if (sale.payment_method === 'credit' && sale.credits?.[0]) {
-            const amountPaid = Number(sale.credits[0].amount_paid) || 0;
-            const amountOwed = Number(sale.credits[0].amount_owed) || 0;
-            const paymentPercentage = amountOwed > 0 ? amountPaid / amountOwed : 0;
-            
-            acc[date].actualSales += saleAmount * paymentPercentage;
-            acc[date].actualProfit += saleProfit * paymentPercentage;
-          } else if (sale.payment_method !== 'credit') {
-            acc[date].actualSales += saleAmount;
-            acc[date].actualProfit += saleProfit;
-          }
-
-          return acc;
-        }, {} as Record<string, { sales: number; profit: number; actualSales: number; actualProfit: number }>) || {};
-
-      const salesChart = Object.entries(salesByDate)
-        .map(([date, data]) => ({
-          date: format(new Date(date), "MMM dd"),
-          ...data,
-        }))
-        .sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
-
-      setMetrics({
-        totalSalesAmount,
-        actualRevenue,
-        pendingRevenue,
-        totalSalesCount,
-        paidSalesCount,
-        creditSalesCount,
-        totalProfit,
-        actualProfit,
-        pendingProfit,
-        averageSale,
-        actualRevenueGrowth,
-        pendingRevenueGrowth,
-        totalSalesCountGrowth,
-        totalProfitGrowth,
-        actualProfitGrowth,
-        pendingProfitGrowth,
-        averageSaleGrowth,
-        comparisonPeriodLabel,
-        topProducts,
-        bottomProducts,
-        salesChart,
-      });
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const timeZone = business?.timezone ?? DEFAULT_TIME_ZONE;
+  const range = { from: formatLocalDayKey(dateRange.from), to: formatLocalDayKey(dateRange.to) };
+  const { metrics, isLoading, error } = useDashboardMetrics(range, timeZone, !!business);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [profile?.business_id, dateRange]);
+    if (error) toast.error("Couldn't load the dashboard", { description: getErrorMessage(error) });
+  }, [error]);
+
+  const setPreset = (days: number) => {
+    const today = new Date();
+    // "Last 7 days" = today and the 6 days before it.
+    setDateRange({ from: subDays(today, days - 1), to: today });
+  };
 
   const formatCurrency = (amount: number) => formatMoney(amount, business?.currency);
 
@@ -369,7 +77,7 @@ const Dashboard = () => {
         </div>
 
         {/* Date Range Picker */}
-        <Popover>
+        <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-auto">
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -385,12 +93,7 @@ const Dashboard = () => {
                   <Button
                     variant="ghost"
                     className="justify-start"
-                    onClick={() =>
-                      setDateRange({
-                        from: new Date(),
-                        to: new Date(),
-                      })
-                    }
+                    onClick={() => setPreset(1)}
                   >
                     Today
                   </Button>
@@ -506,12 +209,7 @@ const Dashboard = () => {
                   </div>
                   <div className="mt-4 flex justify-end">
                     <Button 
-                      onClick={() => {
-                        // Force re-fetch with current date range
-                        fetchDashboardData();
-                        // Close the popover by triggering a click on the document
-                        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-                      }}
+                      onClick={() => setRangeOpen(false)}
                       className="w-full"
                     >
                       Apply Date Range
@@ -588,7 +286,7 @@ const Dashboard = () => {
             </p>
             {metrics && (
               <GrowthIndicator 
-                growth={metrics.totalSalesCountGrowth} 
+                growth={metrics.totalSalesAmountGrowth} 
                 comparisonLabel={metrics.comparisonPeriodLabel}
               />
             )}

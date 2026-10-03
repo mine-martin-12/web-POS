@@ -69,7 +69,7 @@ const Auth = () => {
   };
 
   const onSignUp = async (data: SignUpData) => {
-    const { error } = await signUpBusiness(data as Required<SignUpData>);
+    const { error } = await signUpBusiness(data);
     if (error) {
       if (/business/i.test(error)) signUpForm.setError("businessName", { message: error });
       else if (/email/i.test(error)) signUpForm.setError("email", { message: error });

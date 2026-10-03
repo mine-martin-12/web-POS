@@ -29,11 +29,20 @@ export async function requireMember(req: Request): Promise<Caller> {
 
   const { data: profile, error } = await admin
     .from("profiles")
-    .select("business_id, is_active, user_roles(role)")
+    .select("business_id, is_active, user_roles(role), businesses(account_status, trial_ends_at)")
     .eq("user_id", userData.user.id)
     .maybeSingle();
   if (error) throw error;
   if (!profile || !profile.is_active) throw new HttpError(403, "Your account is not active");
+
+  // Same rule as get_user_business() in the database: expired/suspended businesses are locked.
+  const business = (Array.isArray(profile.businesses) ? profile.businesses[0] : profile.businesses) as
+    | { account_status: string; trial_ends_at: string | null }
+    | null;
+  const active =
+    business?.account_status === "active" ||
+    (business?.account_status === "trial" && !!business.trial_ends_at && new Date(business.trial_ends_at) > new Date());
+  if (!active) throw new HttpError(403, "Your business account has expired. Please contact support.");
 
   const roles = profile.user_roles as { role: AppRole } | { role: AppRole }[] | null;
   const role = (Array.isArray(roles) ? roles[0]?.role : roles?.role) ?? null;

@@ -1,123 +1,100 @@
-import React from 'react';
-import { formatMoney } from '@/lib/currency';
+import React from "react";
+import { format } from "date-fns";
+import { formatMoney } from "@/lib/currency";
+import { dayKey, parseDayKey } from "@/lib/dates";
+import { fromCents, saleMoney } from "@/lib/finance";
+import { PAYMENT_METHOD_LABELS, type SaleRow } from "@/features/sales/types";
 
-interface Sale {
-  id: string;
-  product_id: string;
-  quantity: number;
-  selling_price: number;
-  payment_method: "cash" | "mpesa" | "bank_cheque" | "credit";
-  total_price?: number;
-  sale_date: string;
-  description?: string;
-  created_at: string;
-  updated_at: string;
-  product_name?: string;
-  customer_name?: string;
-  due_date?: string;
-}
-
-interface ReceiptProps {
-  sale: Sale;
-  businessInfo: {
-    name: string;
-    address?: string | null;
-    phone?: string | null;
-  };
+export interface ReceiptBusiness {
+  name: string;
+  address?: string | null;
+  phone?: string | null;
   currency: string;
+  timezone: string;
 }
 
-export const Receipt: React.FC<ReceiptProps> = ({ sale, businessInfo, currency }) => {
-  const formatCurrency = (amount: number) => formatMoney(amount, currency);
-
-  const receiptNumber = `RCP-${sale.id.slice(-8)}`;
-  const saleDate = new Date(sale.created_at).toLocaleDateString();
-  const saleTime = new Date(sale.created_at).toLocaleTimeString();
+/** A printable receipt. Rendered to static HTML (see printReceipt), so it takes plain
+ *  props and uses no context. React escapes every user-supplied string. */
+export function Receipt({ sale, business }: { sale: SaleRow; business: ReceiptBusiness }) {
+  const money = (amount: number) => formatMoney(amount, business.currency);
+  const m = saleMoney(sale);
+  const day = dayKey(sale.sale_date, business.timezone);
+  const time = new Intl.DateTimeFormat("en-GB", {
+    timeZone: business.timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(sale.sale_date));
 
   return (
-    <div className="receipt-container font-mono text-sm max-w-xs mx-auto bg-background text-foreground p-4 border border-border">
-      {/* Business Header */}
-      <div className="text-center border-b border-border pb-2 mb-2">
-        <h2 className="font-bold text-base">{businessInfo.name}</h2>
-        {businessInfo.address && (
-          <p className="text-xs text-muted-foreground">{businessInfo.address}</p>
-        )}
-        {businessInfo.phone && (
-          <p className="text-xs text-muted-foreground">{businessInfo.phone}</p>
-        )}
+    <div className="receipt-container">
+      <div className="center section">
+        <h2>{business.name}</h2>
+        {business.address && <p>{business.address}</p>}
+        {business.phone && <p>{business.phone}</p>}
       </div>
 
-      {/* Transaction Info */}
-      <div className="border-b border-border pb-2 mb-2">
-        <div className="flex justify-between">
-          <span>Receipt #:</span>
-          <span>{receiptNumber}</span>
+      <div className="section">
+        <div className="row">
+          <span>Receipt #</span>
+          <span>RCP-{sale.id.slice(-8).toUpperCase()}</span>
         </div>
-        <div className="flex justify-between">
-          <span>Date:</span>
-          <span>{saleDate}</span>
+        <div className="row">
+          <span>Date</span>
+          <span>
+            {format(parseDayKey(day), "dd MMM yyyy")} {time}
+          </span>
         </div>
-        <div className="flex justify-between">
-          <span>Time:</span>
-          <span>{saleTime}</span>
-        </div>
-      </div>
-
-      {/* Items */}
-      <div className="border-b border-border pb-2 mb-2">
-        <div className="flex justify-between font-semibold mb-1">
-          <span>Item</span>
-          <span>Total</span>
-        </div>
-        <div className="flex justify-between">
-          <div className="flex-1">
-            <div>{sale.product_name}</div>
-            <div className="text-xs text-muted-foreground">
-              {sale.quantity} x {formatCurrency(sale.selling_price)}
-            </div>
+        {sale.credit?.customer_name && (
+          <div className="row">
+            <span>Customer</span>
+            <span>{sale.credit.customer_name}</span>
           </div>
-          <div className="text-right">
-            {formatCurrency(sale.total_price)}
+        )}
+      </div>
+
+      <div className="section">
+        <div className="row">
+          <span>{sale.product_name}</span>
+          <span>{money(sale.total_price)}</span>
+        </div>
+        <div className="muted">
+          {sale.quantity} x {money(sale.selling_price)}
+        </div>
+        {sale.description && <div className="muted">{sale.description}</div>}
+      </div>
+
+      <div className="section">
+        <div className="row bold">
+          <span>TOTAL</span>
+          <span>{money(fromCents(m.billed))}</span>
+        </div>
+        <div className="row">
+          <span>Paid</span>
+          <span>{money(fromCents(m.collected))}</span>
+        </div>
+        {m.outstanding > 0 && (
+          <div className="row bold">
+            <span>BALANCE DUE</span>
+            <span>{money(fromCents(m.outstanding))}</span>
           </div>
-        </div>
+        )}
+        {sale.payment_method !== "credit" && (
+          <div className="row">
+            <span>Paid by</span>
+            <span>{PAYMENT_METHOD_LABELS[sale.payment_method]}</span>
+          </div>
+        )}
+        {m.outstanding > 0 && sale.credit?.due_date && (
+          <div className="row">
+            <span>Balance due on</span>
+            <span>{format(parseDayKey(sale.credit.due_date), "dd MMM yyyy")}</span>
+          </div>
+        )}
       </div>
 
-      {/* Totals */}
-      <div className="border-b border-border pb-2 mb-2">
-        <div className="flex justify-between font-semibold">
-          <span>TOTAL:</span>
-          <span>{formatCurrency(sale.total_price)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Payment Method:</span>
-          <span className="capitalize">{sale.payment_method}</span>
-        </div>
-      </div>
-
-      {/* Credit Information */}
-      {sale.payment_method === 'credit' && (
-        <div className="border-b border-border pb-2 mb-2">
-          <div className="text-center font-semibold mb-1">CREDIT SALE</div>
-          {sale.customer_name && (
-            <div className="flex justify-between">
-              <span>Customer:</span>
-              <span>{sale.customer_name}</span>
-            </div>
-          )}
-          {sale.due_date && (
-            <div className="flex justify-between">
-              <span>Due Date:</span>
-              <span>{new Date(sale.due_date).toLocaleDateString()}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="text-center text-xs text-muted-foreground pt-2">
+      <div className="center muted">
         <p>Thank you for your business!</p>
-        <p className="mt-1">Keep this receipt for your records</p>
       </div>
     </div>
   );
-};
+}

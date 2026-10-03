@@ -1,5 +1,8 @@
 import {
+  ClipboardCheck,
+  Contact,
   HandCoins,
+  History,
   LayoutDashboard,
   type LucideIcon,
   Package,
@@ -7,6 +10,7 @@ import {
   Settings,
   ShoppingCart,
   UserPlus,
+  UserRoundPlus,
   Users,
 } from "lucide-react";
 import type { Capability } from "@/lib/permissions";
@@ -19,7 +23,7 @@ import type { Capability } from "@/lib/permissions";
 
 export const APP_HOME = "/app";
 
-export type NavBadge = "overdueCredits";
+export type NavBadge = "overdueCredits" | "approvals";
 
 export interface AppPage {
   path: string;
@@ -57,6 +61,13 @@ export const APP_PAGES: AppPage[] = [
     badge: "overdueCredits",
   },
   {
+    path: "/app/customers",
+    title: "Customers",
+    description: "People you sell to, with masked phone numbers",
+    icon: Contact,
+    section: "main",
+  },
+  {
     path: "/app/products",
     title: "Products",
     description: "Stock levels and buying prices",
@@ -64,11 +75,27 @@ export const APP_PAGES: AppPage[] = [
     section: "main",
   },
   {
+    path: "/app/approvals",
+    title: "Approvals",
+    description: "Change requests and their review",
+    icon: ClipboardCheck,
+    section: "main",
+    badge: "approvals",
+  },
+  {
     path: "/app/staff",
     title: "Team",
     description: "Invite staff and manage access",
     icon: Users,
     capability: "canManageUsers",
+    section: "admin",
+  },
+  {
+    path: "/app/activity",
+    title: "Activity",
+    description: "Audit trail of every change",
+    icon: History,
+    capability: "canViewAuditLog",
     section: "admin",
   },
   {
@@ -107,6 +134,14 @@ export const QUICK_ACTIONS: QuickAction[] = [
     description: "Add a product to your stock list",
     icon: PackagePlus,
     to: "/app/products?new=1",
+  },
+  {
+    id: "new-customer",
+    label: "Add customer",
+    shortLabel: "Add",
+    description: "Save a customer's name and phone",
+    icon: UserRoundPlus,
+    to: "/app/customers?new=1",
   },
   {
     id: "invite-member",

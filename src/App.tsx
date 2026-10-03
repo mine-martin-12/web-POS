@@ -21,12 +21,16 @@ const Auth = lazy(() => import("./pages/Auth"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Expired = lazy(() => import("./pages/Expired"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Sales = lazy(() => import("./pages/Sales"));
-const Credits = lazy(() => import("./pages/Credits"));
-const Products = lazy(() => import("./pages/Products"));
+const Sales = lazy(() => import("./features/sales/pages/SalesPage"));
+const Credits = lazy(() => import("./features/credits/pages/CreditsPage"));
+const Products = lazy(() => import("./features/products/pages/ProductsPage"));
+const CustomersPage = lazy(() => import("./features/customers/pages/CustomersPage"));
 const Settings = lazy(() => import("./pages/Settings"));
 const StaffPage = lazy(() => import("./features/staff/pages/StaffPage"));
+const ApprovalsPage = lazy(() => import("./features/approvals/pages/ApprovalsPage"));
+const ActivityPage = lazy(() => import("./features/activity/pages/ActivityPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,6 +72,7 @@ const App = () => (
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/accept-invite" element={<AcceptInvite />} />
+                  <Route path="/expired" element={<Expired />} />
 
                   {/* Signed-in app */}
                   <Route
@@ -82,11 +87,21 @@ const App = () => (
                     <Route path="sales" element={<Sales />} />
                     <Route path="credits" element={<Credits />} />
                     <Route path="products" element={<Products />} />
+                    <Route path="customers" element={<CustomersPage />} />
                     <Route
                       path="staff"
                       element={
                         <RoleBasedAccess adminOnly>
                           <StaffPage />
+                        </RoleBasedAccess>
+                      }
+                    />
+                    <Route path="approvals" element={<ApprovalsPage />} />
+                    <Route
+                      path="activity"
+                      element={
+                        <RoleBasedAccess capability="canViewAuditLog">
+                          <ActivityPage />
                         </RoleBasedAccess>
                       }
                     />
