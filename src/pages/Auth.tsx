@@ -52,8 +52,10 @@ const Auth = () => {
 
   if (isRecoveryMode) return <Navigate to="/reset-password" replace />;
   if (user && profile) {
-    const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
-    return <Navigate to={from && from !== "/auth" ? from : "/app"} replace />;
+    // Return to where the guard intercepted the user, including ?new=1 style actions.
+    const from = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
+    const target = from?.pathname?.startsWith("/app") ? `${from.pathname}${from.search ?? ""}` : "/app";
+    return <Navigate to={target} replace />;
   }
 
   const onSignIn = async (data: SignInData) => {
