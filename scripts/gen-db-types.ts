@@ -54,6 +54,7 @@ const enums = await rows<{ name: string; values: string[] }>(
    WHERE n.nspname = 'public' GROUP BY t.typname ORDER BY t.typname`,
 );
 const enumNames = new Set(enums.map((e) => e.name));
+const views = tables.filter((t) => t.kind === "v");
 
 const relationships = await rows<{
   table_name: string;
@@ -189,7 +190,6 @@ out.push(`${I(2)}Tables: {`);
 for (const t of tables.filter((t) => t.kind === "r")) emitRelation(t.name, "r");
 out.push(`${I(2)}}`);
 
-const views = tables.filter((t) => t.kind === "v");
 out.push(`${I(2)}Views: {`);
 if (views.length === 0) out.push(`${I(3)}[_ in never]: never`);
 for (const v of views) emitRelation(v.name, "v");
@@ -207,7 +207,10 @@ for (const f of functions) {
       ? "Record<PropertyKey, never>"
       : `{ ${inputs.map((a, i) => `${a.name}${i >= firstDefault ? "?" : ""}: ${tsType(a.type)}`).join("; ")} }`;
   let returns: string;
-  if (f.return_relation) returns = `Database["public"]["Tables"]["${f.return_relation}"]["Row"]`;
+  if (f.return_relation) {
+    const group = views.some((v) => v.name === f.return_relation) ? "Views" : "Tables";
+    returns = `Database["public"]["${group}"]["${f.return_relation}"]["Row"]`;
+  }
   else returns = tsType(f.return_type.replace(/^public\./, ""));
   if (f.returns_set) returns = `${returns}[]`;
   out.push(`${I(3)}${f.name}: {`);

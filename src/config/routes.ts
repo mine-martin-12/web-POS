@@ -1,4 +1,5 @@
 import {
+  Contact,
   HandCoins,
   LayoutDashboard,
   type LucideIcon,
@@ -7,6 +8,7 @@ import {
   Settings,
   ShoppingCart,
   UserPlus,
+  UserRoundPlus,
   Users,
 } from "lucide-react";
 import type { Capability } from "@/lib/permissions";
@@ -55,6 +57,13 @@ export const APP_PAGES: AppPage[] = [
     icon: HandCoins,
     section: "main",
     badge: "overdueCredits",
+  },
+  {
+    path: "/app/customers",
+    title: "Customers",
+    description: "People you sell to, with masked phone numbers",
+    icon: Contact,
+    section: "main",
   },
   {
     path: "/app/products",
@@ -107,6 +116,14 @@ export const QUICK_ACTIONS: QuickAction[] = [
     description: "Add a product to your stock list",
     icon: PackagePlus,
     to: "/app/products?new=1",
+  },
+  {
+    id: "new-customer",
+    label: "Add customer",
+    shortLabel: "Add",
+    description: "Save a customer's name and phone",
+    icon: UserRoundPlus,
+    to: "/app/customers?new=1",
   },
   {
     id: "invite-member",

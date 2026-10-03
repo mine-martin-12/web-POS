@@ -105,6 +105,7 @@ export type Database = {
           business_id: string
           created_at: string
           created_by: string | null
+          customer_id: string | null
           customer_name: string
           due_date: string
           id: string
@@ -118,6 +119,7 @@ export type Database = {
           business_id: string
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           customer_name: string
           due_date: string
           id?: string
@@ -131,6 +133,7 @@ export type Database = {
           business_id?: string
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           customer_name?: string
           due_date?: string
           id?: string
@@ -147,10 +150,61 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "credits_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "credits_sale_id_fkey"
             columns: ["sale_id"]
             isOneToOne: false
             referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          archived_at: string | null
+          business_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
@@ -316,6 +370,7 @@ export type Database = {
           business_id: string
           created_at: string
           created_by: string | null
+          customer_id: string | null
           description: string | null
           id: string
           payment_method: string
@@ -331,6 +386,7 @@ export type Database = {
           business_id: string
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           description?: string | null
           id?: string
           payment_method?: string
@@ -346,6 +402,7 @@ export type Database = {
           business_id?: string
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           description?: string | null
           id?: string
           payment_method?: string
@@ -363,6 +420,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {
@@ -411,7 +475,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      customers_secure: {
+        Row: {
+          archived_at: string | null
+          business_id: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string | null
+          name: string | null
+          notes: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_stock: {
@@ -421,6 +498,10 @@ export type Database = {
       complete_invitation: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      create_customer: {
+        Args: { _name: string; _phone?: string; _notes?: string; _force?: boolean }
+        Returns: Json
       }
       get_current_user_business_id: {
         Args: Record<PropertyKey, never>
@@ -446,9 +527,21 @@ export type Database = {
         Args: { _name: string }
         Returns: boolean
       }
+      mask_phone: {
+        Args: { _phone: string }
+        Returns: string
+      }
+      normalize_phone: {
+        Args: { _raw: string; _default_country?: string }
+        Returns: string
+      }
       record_credit_payment: {
         Args: { _credit_id: string; _amount: number; _payment_method?: string }
         Returns: Database["public"]["Tables"]["credits"]["Row"]
+      }
+      search_customers: {
+        Args: { _query?: string; _limit?: number }
+        Returns: Database["public"]["Views"]["customers_secure"]["Row"][]
       }
       update_business_details: {
         Args: { _name: string; _phone?: string; _email?: string; _address?: string; _currency?: string; _timezone?: string }

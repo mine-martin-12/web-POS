@@ -13,6 +13,11 @@ export const queryKeys = {
     all: ["sales"] as const,
     range: (from: string, to: string) => [...queryKeys.sales.all, "range", from, to] as const,
   },
+  customers: {
+    all: ["customers"] as const,
+    list: () => [...queryKeys.customers.all, "list"] as const,
+    search: (mode: string, term: string) => [...queryKeys.customers.all, "search", mode, term] as const,
+  },
   nav: {
     all: ["nav"] as const,
     overdueCredits: () => [...queryKeys.nav.all, "overdue-credits"] as const,

@@ -65,5 +65,14 @@ describe("upgrade from the legacy schema", () => {
     expect(credit.due).toBe("2026-10-05");
     const [{ n }] = await rows<{ n: number }>(db, "SELECT count(*)::int AS n FROM products");
     expect(n).toBe(1);
+
+    // Credit names become customer records, linked from the credit and its sale.
+    const [linked] = await rows<{ customer: string; sale_customer: string | null; credit_customer: string | null }>(
+      db,
+      `SELECT cu.name AS customer, s.customer_id::text AS sale_customer, c.customer_id::text AS credit_customer
+       FROM credits c JOIN customers cu ON cu.id = c.customer_id JOIN sales s ON s.id = c.sale_id`,
+    );
+    expect(linked.customer).toBe("Otieno");
+    expect(linked.sale_customer).toBe(linked.credit_customer);
   }, 60_000);
 });
