@@ -21,6 +21,7 @@ const Auth = lazy(() => import("./pages/Auth"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Expired = lazy(() => import("./pages/Expired"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Sales = lazy(() => import("./features/sales/pages/SalesPage"));
 const Credits = lazy(() => import("./features/credits/pages/CreditsPage"));
@@ -71,6 +72,7 @@ const App = () => (
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/accept-invite" element={<AcceptInvite />} />
+                  <Route path="/expired" element={<Expired />} />
 
                   {/* Signed-in app */}
                   <Route

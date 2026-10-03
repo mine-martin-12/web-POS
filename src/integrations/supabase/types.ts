@@ -66,6 +66,7 @@ export type Database = {
       }
       businesses: {
         Row: {
+          account_status: string
           address: string | null
           created_at: string
           currency: string
@@ -74,9 +75,11 @@ export type Database = {
           name: string
           phone: string | null
           timezone: string
+          trial_ends_at: string | null
           updated_at: string
         }
         Insert: {
+          account_status?: string
           address?: string | null
           created_at?: string
           currency?: string
@@ -85,9 +88,11 @@ export type Database = {
           name: string
           phone?: string | null
           timezone?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Update: {
+          account_status?: string
           address?: string | null
           created_at?: string
           currency?: string
@@ -96,6 +101,7 @@ export type Database = {
           name?: string
           phone?: string | null
           timezone?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -611,6 +617,10 @@ export type Database = {
         Args: { _id: string; _archived?: boolean }
         Returns: Database["public"]["Tables"]["pending_updates"]["Row"]
       }
+      business_is_active: {
+        Args: { _business: string }
+        Returns: boolean
+      }
       complete_invitation: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -626,6 +636,10 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_member_business: {
+        Args: { _user_id: string }
+        Returns: string
       }
       get_user_business: {
         Args: { _user_id: string }
