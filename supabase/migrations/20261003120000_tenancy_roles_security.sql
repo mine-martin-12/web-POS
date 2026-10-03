@@ -14,6 +14,54 @@
 -- =====================================================================================
 
 -- -------------------------------------------------------------------------------------
+-- 0. Tables created outside these migrations
+-- -------------------------------------------------------------------------------------
+-- A database may already have tables with names this upgrade uses (added by hand in the
+-- dashboard or by another tool) but with other columns and policies. CREATE TABLE IF NOT
+-- EXISTS would silently keep them and the app would miss the relationships it needs.
+-- So, the first time this upgrade runs (no businesses table yet), each such table is
+-- renamed to <name>_legacy together with its indexes and sequences, and closed to clients.
+-- Nothing is deleted; later migrations copy over what they can use (see expenses).
+DO $$
+DECLARE
+  _t   text;
+  _new text;
+  _rel record;
+BEGIN
+  IF to_regclass('public.businesses') IS NOT NULL THEN
+    RETURN;
+  END IF;
+  FOREACH _t IN ARRAY ARRAY[
+    'user_roles', 'invitations', 'credit_payments', 'customers', 'customers_secure',
+    'pending_updates', 'activity_logs', 'expenses', 'notifications',
+    'notification_preferences', 'sms_templates', 'sms_messages'
+  ] LOOP
+    CONTINUE WHEN to_regclass('public.' || _t) IS NULL;
+    _new := _t || '_legacy';
+    WHILE to_regclass('public.' || _new) IS NOT NULL LOOP
+      _new := _new || '_old';
+    END LOOP;
+    -- Index and sequence names are schema-wide, so they would clash with the new table's.
+    FOR _rel IN
+      SELECT DISTINCT c.relname, c.relkind
+      FROM pg_class c
+      LEFT JOIN pg_index x ON x.indexrelid = c.oid
+      LEFT JOIN pg_depend d ON d.objid = c.oid AND c.relkind = 'S'
+      WHERE x.indrelid = ('public.' || _t)::regclass
+         OR d.refobjid = ('public.' || _t)::regclass
+    LOOP
+      EXECUTE format(
+        CASE _rel.relkind WHEN 'S' THEN 'ALTER SEQUENCE public.%I RENAME TO %I' ELSE 'ALTER INDEX public.%I RENAME TO %I' END,
+        _rel.relname, left(_rel.relname, 55) || '_legacy'
+      );
+    END LOOP;
+    EXECUTE format('ALTER TABLE public.%I RENAME TO %I', _t, _new);
+    EXECUTE format('REVOKE ALL ON public.%I FROM anon, authenticated', _new);
+    RAISE NOTICE 'Kept the existing table public.% as public.%', _t, _new;
+  END LOOP;
+END $$;
+
+-- -------------------------------------------------------------------------------------
 -- 1. Businesses (the tenant)
 -- -------------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.businesses (
