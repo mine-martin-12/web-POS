@@ -23,7 +23,10 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { Money } from "@/components/common/Money";
 import { DataTable, type DataTableColumn } from "@/components/common/data-table/DataTable";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
-import { datedFilename, downloadCsv, toCsv } from "@/lib/csv";
+import { datedFilename, downloadCsv } from "@/lib/csv";
+import { sheetToCsv } from "@/lib/exports/files";
+import type { ExportSheet } from "@/lib/exports/table";
+import { ExportMenu } from "@/components/common/ExportMenu";
 import { getErrorMessage } from "@/lib/errors";
 import { toCents } from "@/lib/finance";
 import { LOW_STOCK_THRESHOLD, type Product } from "../api";
@@ -76,26 +79,27 @@ const ProductsPage: React.FC = () => {
   const stockValue = useMemo(() => rows.reduce((sum, p) => sum + p.stock_quantity * toCents(p.buying_price), 0), [rows]);
   const lowCount = rows.filter((p) => p.stock_quantity < LOW_STOCK_THRESHOLD).length;
 
-  const exportCsv = (list: Product[]) => {
-    const csv = toCsv(
-      list,
-      [
-        { header: "ID", value: (_p, i) => `P${String(i + 1).padStart(4, "0")}` },
-        { header: "Name", value: (p) => p.name },
-        { header: "Description", value: (p) => p.description },
-        { header: "Size", value: (p) => p.size ?? "" },
-        { header: "In stock", value: (p) => p.stock_quantity },
-        { header: "Buying price", value: (p) => Number(p.buying_price).toFixed(2) },
-        { header: "Stock value", value: (p) => ((p.stock_quantity * toCents(p.buying_price)) / 100).toFixed(2) },
-      ],
-      [
-        [business?.name ?? "Smart POS"],
-        ["Products export", format(new Date(), "PPpp")],
-        ["Currency", business?.currency ?? DEFAULT_CURRENCY],
-      ],
+  const sheet = (list: Product[]): ExportSheet<Product> => ({
+    name: "Products",
+    total: security.canViewFinancialData,
+    rows: list,
+    columns: [
+      { header: "ID", value: (_p, i) => `P${String(i + 1).padStart(4, "0")}` },
+      { header: "Name", value: (p) => p.name, width: 24 },
+      { header: "Description", value: (p) => p.description, width: 28 },
+      { header: "Size", value: (p) => p.size ?? "" },
+      { header: "In stock", value: (p) => p.stock_quantity },
+      { header: "Buying price", value: (p) => Number(p.buying_price), money: true, noTotal: true },
+      ...(security.canViewFinancialData
+        ? [{ header: "Stock value", value: (p: Product) => (p.stock_quantity * toCents(p.buying_price)) / 100, money: true }]
+        : []),
+    ],
+  });
+  const exportSelected = (list: Product[]) =>
+    downloadCsv(
+      sheetToCsv({ businessName: business?.name ?? "Smart POS", title: "Products (selected)", currency: business?.currency ?? DEFAULT_CURRENCY }, sheet(list)),
+      datedFilename("products-selected", "csv"),
     );
-    downloadCsv(csv, datedFilename("products", "csv"));
-  };
 
   const confirmArchive = async () => {
     if (!archiving) return;
@@ -197,10 +201,14 @@ const ProductsPage: React.FC = () => {
             <span className="sm:hidden">Add</span>
             <span className="hidden sm:inline">Add product</span>
           </Button>
-          <Button variant="outline" onClick={() => exportCsv(rows)} disabled={!rows.length} className="w-full sm:order-1 sm:w-auto">
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
+          <ExportMenu
+            filename="products"
+            title="Stock list"
+            subtitle={format(new Date(), "d MMM yyyy")}
+            disabled={!rows.length}
+            className="sm:order-1"
+            sheets={() => [sheet(rows)]}
+          />
         </div>
       </div>
 
@@ -244,7 +252,7 @@ const ProductsPage: React.FC = () => {
         selectable={security.canBulkOperations}
         bulkActions={(selected, clear) => (
           <>
-            <Button size="sm" variant="outline" onClick={() => exportCsv(selected)}>
+            <Button size="sm" variant="outline" onClick={() => exportSelected(selected)}>
               <Download className="mr-1.5 h-4 w-4" /> Export
             </Button>
             <Button

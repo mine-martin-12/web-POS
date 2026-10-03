@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { HandCoins, Maximize2, Percent, Receipt, TrendingUp, Wallet } from "lucide-react";
+import { FileSpreadsheet, HandCoins, Maximize2, Percent, Receipt, TrendingUp, Wallet } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUrlState } from "@/hooks/useUrlState";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { PAYMENT_METHOD_LABELS } from "@/features/sales/types";
 import { addDaysToKey, DEFAULT_TIME_ZONE, daysInclusive, todayKey } from "@/lib/dates";
 import { creditOutstanding, marginPct, pctChange, summarizeBy, summarizeSales, toCents } from "@/lib/finance";
 import { FocusMode } from "../components/FocusMode";
+import { TaxExportDialog } from "../components/TaxExportDialog";
 import { agingBuckets, pointsChange, receivedByMethod, totalsBy } from "../lib";
 
 const TABS = [
@@ -40,6 +41,7 @@ const ReportsPage: React.FC = () => {
   const period = resolvePeriod({ period: url.get("period"), month: url.get("month"), from: url.get("from"), to: url.get("to") }, today);
   const tab = (TABS.some((t) => t.value === url.get("tab")) ? url.get("tab") : "trends") as TabValue;
   const [focused, setFocused] = useState(false);
+  const [taxOpen, setTaxOpen] = useState(false);
 
   const days = daysInclusive(period.from, period.to);
   const prev = { from: addDaysToKey(period.from, -days), to: addDaysToKey(period.from, -1) };
@@ -167,7 +169,13 @@ const ReportsPage: React.FC = () => {
           <h1 className="text-3xl font-bold text-foreground">Reports</h1>
           <p className="text-muted-foreground">How the business is doing, and where the money is.</p>
         </div>
-        <PeriodPicker period={period} today={today} onChange={(u) => url.set(u)} />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <PeriodPicker period={period} today={today} onChange={(u) => url.set(u)} />
+          <Button variant="outline" onClick={() => setTaxOpen(true)} disabled={loading}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Tax export
+          </Button>
+        </div>
       </div>
 
       <section aria-label="Key figures" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -207,6 +215,15 @@ const ReportsPage: React.FC = () => {
           </TabsContent>
         ))}
       </Tabs>
+
+      <TaxExportDialog
+        open={taxOpen}
+        onOpenChange={setTaxOpen}
+        periodLabel={period.label}
+        sales={sales.data ?? []}
+        expenses={expenses.data ?? []}
+        timeZone={timeZone}
+      />
 
       {focused && (
         <FocusMode title={`${label} · ${period.label}`} onClose={() => setFocused(false)}>

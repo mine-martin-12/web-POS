@@ -25,7 +25,8 @@ import { PeriodPicker } from "@/features/sales/components/PeriodPicker";
 import { resolvePeriod } from "@/features/sales/period";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/features/sales/types";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
-import { datedFilename, downloadCsv, toCsv } from "@/lib/csv";
+import { ExportMenu } from "@/components/common/ExportMenu";
+import { expensesSheet } from "../lib";
 import { parseDayKey, todayKey } from "@/lib/dates";
 import { toCents } from "@/lib/finance";
 import type { Expense } from "../api";
@@ -68,21 +69,6 @@ const ExpensesPage: React.FC = () => {
     return [...map].sort((a, b) => b[1] - a[1]);
   }, [rows]);
 
-  const exportCsv = () => {
-    const csv = toCsv(
-      rows,
-      [
-        { header: "ID", value: (_e, i) => `E${String(i + 1).padStart(4, "0")}` },
-        { header: "Date", value: (e) => e.expense_date },
-        { header: "Category", value: (e) => e.category },
-        { header: "Amount", value: (e) => Number(e.amount).toFixed(2) },
-        { header: "Paid by", value: (e) => PAYMENT_METHOD_LABELS[e.payment_method as PaymentMethod] },
-        { header: "Notes", value: (e) => e.description ?? "" },
-      ],
-      [[business?.name ?? "Smart POS"], ["Expenses", period.label], ["Currency", business?.currency ?? DEFAULT_CURRENCY]],
-    );
-    downloadCsv(csv, datedFilename("expenses", "csv"));
-  };
 
   const confirmDelete = async () => {
     if (!deleting) return;
@@ -147,10 +133,14 @@ const ExpensesPage: React.FC = () => {
             <span className="sm:hidden">Add</span>
             <span className="hidden sm:inline">Record expense</span>
           </Button>
-          <Button variant="outline" onClick={exportCsv} disabled={!rows.length} className="w-full sm:order-1 sm:w-auto">
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
+          <ExportMenu
+            filename="expenses"
+            title="Expenses"
+            subtitle={period.label}
+            disabled={!rows.length}
+            className="sm:order-1"
+            sheets={() => [expensesSheet(rows)]}
+          />
         </div>
       </div>
 

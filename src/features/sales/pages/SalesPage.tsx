@@ -25,16 +25,19 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
-import { datedFilename, downloadCsv, toCsv } from "@/lib/csv";
+import { datedFilename, downloadCsv } from "@/lib/csv";
+import { formatMoney } from "@/lib/currency";
+import { sheetToCsv } from "@/lib/exports/files";
+import { ExportMenu } from "@/components/common/ExportMenu";
 import { DEFAULT_TIME_ZONE, dayKey, parseDayKey, todayKey } from "@/lib/dates";
-import { saleMoney, summarizeSales, type PaymentStatus } from "@/lib/finance";
+import { fromCents, saleMoney, summarizeSales, type PaymentStatus } from "@/lib/finance";
 import { printReceipt } from "@/utils/printUtils";
 import { MonthBrowser } from "../components/MonthBrowser";
 import { PaymentStatusBadge } from "../components/PaymentStatusBadge";
 import { PeriodPicker } from "../components/PeriodPicker";
 import { SaleFormDialog } from "../components/SaleFormDialog";
 import { useDeleteSaleOptimistic, useMarkSalePaid, useMonthSummary, useProducts, useSales, useSalesRange } from "../hooks";
-import { lastPrices, matchesSearch, mostCommonMethod, saleCsvColumns } from "../lib";
+import { lastPrices, matchesSearch, mostCommonMethod, salesSheet } from "../lib";
 import { resolvePeriod } from "../period";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod, type SaleRow } from "../types";
 
@@ -98,15 +101,13 @@ const SalesPage: React.FC = () => {
     document.getElementById(`row-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [focus, sales.data]);
 
-  const exportCsv = (list: SaleRow[]) => {
-    const csv = toCsv(list, saleCsvColumns(timeZone, security.canViewFinancialData), [
-      [business?.name ?? "Smart POS"],
-      ["Sales", period.label],
-      ["Exported", format(new Date(), "PPpp")],
-      ["Currency", business?.currency ?? DEFAULT_CURRENCY],
-    ]);
-    downloadCsv(csv, datedFilename("sales", "csv"));
-    toast.success("Export ready", { description: `${list.length} sales` });
+  const sheet = (list: SaleRow[]) => salesSheet(list, timeZone, security.canViewFinancialData);
+  const exportSelected = (list: SaleRow[]) => {
+    const csv = sheetToCsv(
+      { businessName: business?.name ?? "Smart POS", title: "Sales (selected)", subtitle: period.label, currency: business?.currency ?? DEFAULT_CURRENCY },
+      sheet(list),
+    );
+    downloadCsv(csv, datedFilename("sales-selected", "csv"));
   };
 
   const print = (sale: SaleRow) => {
@@ -256,10 +257,20 @@ const SalesPage: React.FC = () => {
             <Plus className="mr-2 h-4 w-4" />
             Record sale
           </Button>
-          <Button variant="outline" onClick={() => exportCsv(rows)} disabled={!rows.length} className="w-full sm:order-1 sm:w-auto">
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
+          <ExportMenu
+            filename="sales"
+            title="Sales report"
+            subtitle={period.label}
+            disabled={!rows.length}
+            className="sm:order-1"
+            sheets={() => [sheet(rows)]}
+            summary={() => [
+              ["Sales", String(totals.count)],
+              ["Total billed", formatMoney(fromCents(totals.billed), business?.currency)],
+              ["Collected", formatMoney(fromCents(totals.collected), business?.currency)],
+              ["Outstanding", formatMoney(fromCents(totals.outstanding), business?.currency)],
+            ]}
+          />
         </div>
       </div>
 
@@ -370,7 +381,7 @@ const SalesPage: React.FC = () => {
         selectable={security.canBulkOperations}
         bulkActions={(selected, clear) => (
           <>
-            <Button size="sm" variant="outline" onClick={() => exportCsv(selected)}>
+            <Button size="sm" variant="outline" onClick={() => exportSelected(selected)}>
               <Download className="mr-1.5 h-4 w-4" /> Export
             </Button>
             {selected.some((s) => saleMoney(s).outstanding > 0) && (
