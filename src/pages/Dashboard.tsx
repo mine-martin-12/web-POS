@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { formatMoney } from "@/lib/currency";
+import { Money } from "@/components/common/Money";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,7 +59,7 @@ interface DashboardMetrics {
 }
 
 const Dashboard = () => {
-  const { profile } = useAuth();
+  const { profile, business } = useAuth();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<{
@@ -352,12 +354,7 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [profile?.business_id, dateRange]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "KES",
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number) => formatMoney(amount, business?.currency);
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -538,7 +535,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent className="pb-4">
             <div className="text-2xl font-bold text-foreground mb-1">
-              {metrics ? formatCurrency(metrics.actualRevenue) : "KES 0.00"}
+              <Money value={metrics?.actualRevenue ?? 0} />
             </div>
             <p className="text-xs text-muted-foreground">
               From {metrics?.paidSalesCount || 0} paid sales
@@ -561,7 +558,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent className="pb-4">
             <div className="text-2xl font-bold text-foreground mb-1">
-              {metrics ? formatCurrency(metrics.pendingRevenue) : "KES 0.00"}
+              <Money value={metrics?.pendingRevenue ?? 0} />
             </div>
             <p className="text-xs text-muted-foreground">
               From {metrics?.creditSalesCount || 0} credit sales
@@ -584,7 +581,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent className="pb-4">
             <div className="text-2xl font-bold text-foreground mb-1">
-              {metrics ? formatCurrency(metrics.totalSalesAmount) : "KES 0.00"}
+              <Money value={metrics?.totalSalesAmount ?? 0} />
             </div>
             <p className="text-xs text-muted-foreground">
               {metrics?.totalSalesCount || 0} total transactions
@@ -607,7 +604,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent className="pb-4">
             <div className="text-2xl font-bold text-foreground mb-1">
-              {metrics ? formatCurrency(metrics.actualProfit) : "KES 0.00"}
+              <Money value={metrics?.actualProfit ?? 0} />
             </div>
             <p className="text-xs text-muted-foreground">Cash flow profit</p>
             {metrics && (
@@ -628,7 +625,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent className="pb-4">
             <div className="text-2xl font-bold text-foreground mb-1">
-              {metrics ? formatCurrency(metrics.pendingProfit) : "KES 0.00"}
+              <Money value={metrics?.pendingProfit ?? 0} />
             </div>
             <p className="text-xs text-muted-foreground">From credit sales</p>
             {metrics && (
@@ -649,7 +646,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent className="pb-4">
             <div className="text-2xl font-bold text-foreground mb-1">
-              {metrics ? formatCurrency(metrics.averageSale) : "KES 0.00"}
+              <Money value={metrics?.averageSale ?? 0} />
             </div>
             <p className="text-xs text-muted-foreground">Per transaction</p>
             {metrics && (
@@ -807,7 +804,7 @@ const Dashboard = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-foreground">
-                      {formatCurrency(product.totalSales)}
+                      <Money value={product.totalSales} />
                     </p>
                   </div>
                 </div>
@@ -842,7 +839,7 @@ const Dashboard = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-foreground">
-                      {formatCurrency(product.totalSales)}
+                      <Money value={product.totalSales} />
                     </p>
                   </div>
                 </div>

@@ -11,7 +11,8 @@ import { PublicOnly } from "@/components/auth/PublicOnly";
 import { RoleBasedAccess } from "@/components/auth/RoleBasedAccess";
 import { BrandedSpinner } from "@/components/common/BrandedSpinner";
 import { AppLayout } from "@/components/layout/AppLayout";
-import InactivityWrapper from "@/components/layout/InactivityWrapper";
+import { InactivityManager } from "@/components/session/InactivityManager";
+import { PrivacyModeProvider } from "@/contexts/PrivacyModeContext";
 import { LEGACY_REDIRECTS } from "@/config/routes";
 
 // Every page is code-split; the shell shows a branded spinner while one loads.
@@ -47,61 +48,62 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="theme" disableTransitionOnChange>
       <AuthProvider>
-        <TooltipProvider delayDuration={300}>
-          <Toaster />
-          <Sonner richColors closeButton />
-          <BrowserRouter>
-            <Suspense fallback={<BrandedSpinner fullScreen />}>
-              <Routes>
-                {/* Public */}
-                <Route
-                  path="/"
-                  element={
-                    <PublicOnly>
-                      <Index />
-                    </PublicOnly>
-                  }
-                />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/accept-invite" element={<AcceptInvite />} />
-
-                {/* Signed-in app */}
-                <Route
-                  path="/app"
-                  element={
-                    <AuthGuard>
-                      <InactivityWrapper timeoutMinutes={6} warningMinutes={3}>
-                        <AppLayout />
-                      </InactivityWrapper>
-                    </AuthGuard>
-                  }
-                >
-                  <Route index element={<Dashboard />} />
-                  <Route path="sales" element={<Sales />} />
-                  <Route path="credits" element={<Credits />} />
-                  <Route path="products" element={<Products />} />
+        <PrivacyModeProvider>
+          <TooltipProvider delayDuration={300}>
+            <Toaster />
+            <Sonner richColors closeButton />
+            <InactivityManager />
+            <BrowserRouter>
+              <Suspense fallback={<BrandedSpinner fullScreen />}>
+                <Routes>
+                  {/* Public */}
                   <Route
-                    path="staff"
+                    path="/"
                     element={
-                      <RoleBasedAccess adminOnly>
-                        <StaffPage />
-                      </RoleBasedAccess>
+                      <PublicOnly>
+                        <Index />
+                      </PublicOnly>
                     }
                   />
-                  <Route path="settings" element={<Settings />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/accept-invite" element={<AcceptInvite />} />
+
+                  {/* Signed-in app */}
+                  <Route
+                    path="/app"
+                    element={
+                      <AuthGuard>
+                        <AppLayout />
+                      </AuthGuard>
+                    }
+                  >
+                    <Route index element={<Dashboard />} />
+                    <Route path="sales" element={<Sales />} />
+                    <Route path="credits" element={<Credits />} />
+                    <Route path="products" element={<Products />} />
+                    <Route
+                      path="staff"
+                      element={
+                        <RoleBasedAccess adminOnly>
+                          <StaffPage />
+                        </RoleBasedAccess>
+                      }
+                    />
+                    <Route path="settings" element={<Settings />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Route>
+
+                  {Object.entries(LEGACY_REDIRECTS).map(([from, to]) => (
+                    <Route key={from} path={from} element={<LegacyRedirect to={to} />} />
+                  ))}
+
                   <Route path="*" element={<NotFound />} />
-                </Route>
-
-                {Object.entries(LEGACY_REDIRECTS).map(([from, to]) => (
-                  <Route key={from} path={from} element={<LegacyRedirect to={to} />} />
-                ))}
-
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </TooltipProvider>
+        </PrivacyModeProvider>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>

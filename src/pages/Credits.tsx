@@ -1,4 +1,6 @@
+import { formatMoney } from "@/lib/currency";
 import React, { useState, useEffect } from 'react';
+import { Money } from "@/components/common/Money";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +29,7 @@ interface Credit {
 }
 
 const Credits: React.FC = () => {
-  const { user } = useAuth();
+  const { user, business } = useAuth();
   const { canDeleteRecords } = useSecurity();
   const { toast } = useToast();
   const [credits, setCredits] = useState<Credit[]>([]);
@@ -101,7 +103,7 @@ const Credits: React.FC = () => {
 
       toast({
         title: 'Payment Recorded',
-        description: `Payment of ${formatCurrency(amount)} has been recorded successfully`,
+        description: `Payment of ${formatMoney(amount, business?.currency)} has been recorded successfully`,
       });
 
       setIsPaymentDialogOpen(false);
@@ -224,12 +226,6 @@ const Credits: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "KES",
-    }).format(amount);
-  };
 
   const totalOutstanding = credits.reduce((sum, credit) => 
     sum + (credit.amount_owed - credit.amount_paid), 0
@@ -249,7 +245,7 @@ const Credits: React.FC = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalOutstanding)}</div>
+            <div className="text-2xl font-bold"><Money value={totalOutstanding} /></div>
           </CardContent>
         </Card>
 
@@ -323,9 +319,9 @@ const Credits: React.FC = () => {
                     return (
                       <TableRow key={credit.id} className={isOverdue ? 'bg-destructive/10' : ''}>
                         <TableCell className="font-medium">{credit.customer_name}</TableCell>
-                        <TableCell>{formatCurrency(credit.amount_owed)}</TableCell>
-                        <TableCell>{formatCurrency(credit.amount_paid)}</TableCell>
-                        <TableCell className="font-semibold">{formatCurrency(outstanding)}</TableCell>
+                        <TableCell><Money value={credit.amount_owed} /></TableCell>
+                        <TableCell><Money value={credit.amount_paid} /></TableCell>
+                        <TableCell className="font-semibold"><Money value={outstanding} /></TableCell>
                         <TableCell>
                           {new Date(credit.due_date).toLocaleDateString()}
                           {isOverdue && <span className="text-destructive ml-1">(Overdue)</span>}
@@ -397,7 +393,7 @@ const Credits: React.FC = () => {
               <div>
                 <Label>Outstanding Balance</Label>
                 <div className="text-lg font-semibold">
-                  {formatCurrency(selectedCredit.amount_owed - selectedCredit.amount_paid)}
+                  <Money value={selectedCredit.amount_owed - selectedCredit.amount_paid} />
                 </div>
               </div>
               <div>

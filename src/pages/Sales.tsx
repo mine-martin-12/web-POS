@@ -1,4 +1,5 @@
 import { useSecurity } from "@/hooks/useSecurity";
+import { Money } from "@/components/common/Money";
 import { useActionParam } from "@/hooks/useActionParam";
 import { getErrorMessage } from "@/lib/errors";
 import React, { useState, useEffect } from "react";
@@ -524,12 +525,6 @@ const Sales: React.FC = () => {
   // Quick actions (header button, command palette, mobile FAB) link here with ?new=1.
   useActionParam("new", openAddDialog);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "KES",
-    }).format(amount);
-  };
 
   return (
     <div className="space-y-6">
@@ -598,12 +593,10 @@ const Sales: React.FC = () => {
                       </TableCell>
                       <TableCell>{sale.quantity}</TableCell>
                       <TableCell>
-                        {formatCurrency(sale.selling_price)}
+                        <Money value={sale.selling_price} />
                       </TableCell>
                       <TableCell>
-                        {formatCurrency(
-                          sale.total_price || sale.quantity * sale.selling_price
-                        )}
+                        <Money value={sale.total_price || sale.quantity * sale.selling_price} />
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
@@ -639,8 +632,8 @@ const Sales: React.FC = () => {
                                   </span>
                                   {paymentPercentage < 100 && (
                                     <span className="text-xs text-muted-foreground">
-                                      {formatCurrency(amountPaid)} /{" "}
-                                      {formatCurrency(amountOwed)}
+                                      <Money value={amountPaid} /> /{" "}
+                                      <Money value={amountOwed} />
                                     </span>
                                   )}
                                 </>
@@ -695,7 +688,7 @@ const Sales: React.FC = () => {
                                           : "text-red-600 dark:text-red-400"
                                       }
                                     >
-                                      {formatCurrency(actualProfit)}
+                                      <Money value={actualProfit} />
                                     </span>
                                     <span className="text-xs text-green-600 dark:text-green-400">
                                       Actual
@@ -704,7 +697,7 @@ const Sales: React.FC = () => {
                                   {pendingProfit > 0 && (
                                     <div className="flex items-center gap-1">
                                       <span className="text-orange-600 dark:text-orange-400">
-                                        {formatCurrency(pendingProfit)}
+                                        <Money value={pendingProfit} />
                                       </span>
                                       <span className="text-xs text-orange-600 dark:text-orange-400">
                                         Pending
@@ -722,7 +715,7 @@ const Sales: React.FC = () => {
                                   : "text-red-600 dark:text-red-400"
                               }
                             >
-                              {formatCurrency(calculateProfit(sale))}
+                              <Money value={calculateProfit(sale)} />
                               {sale.payment_method === "credit" && (
                                 <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">
                                   Pending

@@ -225,3 +225,23 @@
     transform: translateY(0);
   }
 }
+/* -------------------------------------------------------------------------------------
+ * Privacy mode (data-privacy="on" on <html>, see PrivacyModeContext): blur every amount
+ * and every chart value so the screen can be used in front of customers.
+ * ----------------------------------------------------------------------------------- */
+.sensitive,
+.recharts-cartesian-axis-tick-value,
+.recharts-tooltip-wrapper,
+.recharts-label,
+.recharts-label-list {
+  transition: filter 0.2s ease;
+}
+
+[data-privacy="on"] .sensitive,
+[data-privacy="on"] .recharts-yAxis .recharts-cartesian-axis-tick-value,
+[data-privacy="on"] .recharts-tooltip-wrapper,
+[data-privacy="on"] .recharts-label,
+[data-privacy="on"] .recharts-label-list {
+  filter: blur(6px);
+  user-select: none;
+}

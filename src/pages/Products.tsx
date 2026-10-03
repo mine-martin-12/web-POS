@@ -1,4 +1,5 @@
 import { useSecurity } from "@/hooks/useSecurity";
+import { Money } from "@/components/common/Money";
 import { useActionParam } from "@/hooks/useActionParam";
 import { getErrorMessage } from "@/lib/errors";
 import React, { useState, useEffect } from "react";
@@ -350,12 +351,6 @@ const Products: React.FC = () => {
     return { label: "In Stock", color: "default" as const };
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "KES",
-    }).format(amount);
-  };
 
   return (
     <div className="space-y-6">
@@ -433,12 +428,10 @@ const Products: React.FC = () => {
                         </TableCell>
                         <TableCell>{product.stock_quantity}</TableCell>
                         <TableCell>
-                          {formatCurrency(product.buying_price)}
+                          <Money value={product.buying_price} />
                         </TableCell>
                         <TableCell>
-                          {formatCurrency(
-                            product.buying_price * product.stock_quantity
-                          )}
+                          <Money value={product.buying_price * product.stock_quantity} />
                         </TableCell>
                         <TableCell>
                           {new Date(product.created_at).toLocaleDateString()}
