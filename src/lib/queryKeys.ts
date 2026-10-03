@@ -48,6 +48,11 @@ export const queryKeys = {
     list: () => [...queryKeys.notifications.all, "list"] as const,
     preferences: () => [...queryKeys.notifications.all, "preferences"] as const,
   },
+  messaging: {
+    all: ["messaging"] as const,
+    history: (since: string) => [...queryKeys.messaging.all, "history", since] as const,
+    templates: () => [...queryKeys.messaging.all, "templates"] as const,
+  },
   nav: {
     all: ["nav"] as const,
     overdueCredits: () => [...queryKeys.nav.all, "overdue-credits"] as const,

@@ -166,6 +166,7 @@ export type Database = {
           due_date: string
           id: string
           overdue_notified_at: string | null
+          reminder_sent_at: string | null
           sale_id: string
           status: Database["public"]["Enums"]["credit_status"]
           updated_at: string
@@ -181,6 +182,7 @@ export type Database = {
           due_date: string
           id?: string
           overdue_notified_at?: string | null
+          reminder_sent_at?: string | null
           sale_id: string
           status?: Database["public"]["Enums"]["credit_status"]
           updated_at?: string
@@ -196,6 +198,7 @@ export type Database = {
           due_date?: string
           id?: string
           overdue_notified_at?: string | null
+          reminder_sent_at?: string | null
           sale_id?: string
           status?: Database["public"]["Enums"]["credit_status"]
           updated_at?: string
@@ -686,6 +689,107 @@ export type Database = {
           },
         ]
       }
+      sms_messages: {
+        Row: {
+          body: string
+          broadcast_id: string | null
+          business_id: string
+          created_at: string
+          customer_id: string | null
+          error: string | null
+          id: string
+          kind: string
+          phone: string
+          provider_message_id: string | null
+          sent_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          broadcast_id?: string | null
+          business_id: string
+          created_at?: string
+          customer_id?: string | null
+          error?: string | null
+          id?: string
+          kind?: string
+          phone: string
+          provider_message_id?: string | null
+          sent_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          broadcast_id?: string | null
+          business_id?: string
+          created_at?: string
+          customer_id?: string | null
+          error?: string | null
+          id?: string
+          kind?: string
+          phone?: string
+          provider_message_id?: string | null
+          sent_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_templates: {
+        Row: {
+          body: string
+          business_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_templates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           business_id: string
@@ -826,6 +930,10 @@ export type Database = {
       search_customers: {
         Args: { _query?: string; _limit?: number }
         Returns: Database["public"]["Views"]["customers_secure"]["Row"][]
+      }
+      sms_audience: {
+        Args: { _audience: string }
+        Returns: { customer_id: string; name: string }[]
       }
       submit_change: {
         Args: { _table: string; _record_id: string; _new_values: Json; _reason: string }

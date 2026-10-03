@@ -6,6 +6,7 @@ import {
   History,
   LayoutDashboard,
   type LucideIcon,
+  MessageSquare,
   Package,
   PackagePlus,
   Settings,
@@ -107,6 +108,14 @@ export const APP_PAGES: AppPage[] = [
     description: "Rent, wages and other running costs",
     icon: Wallet,
     capability: "canManageExpenses",
+    section: "admin",
+  },
+  {
+    path: "/app/messages",
+    title: "Messages",
+    description: "Text customers: reminders, broadcasts and templates",
+    icon: MessageSquare,
+    capability: "canSendMessages",
     section: "admin",
   },
   {
