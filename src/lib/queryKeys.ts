@@ -33,6 +33,10 @@ export const queryKeys = {
     list: () => [...queryKeys.customers.all, "list"] as const,
     search: (mode: string, term: string) => [...queryKeys.customers.all, "search", mode, term] as const,
   },
+  activity: {
+    all: ["activity"] as const,
+    page: (filters: object, page: number, size: number) => [...queryKeys.activity.all, filters, page, size] as const,
+  },
   nav: {
     all: ["nav"] as const,
     overdueCredits: () => [...queryKeys.nav.all, "overdue-credits"] as const,

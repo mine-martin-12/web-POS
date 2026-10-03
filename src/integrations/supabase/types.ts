@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          business_id: string
+          created_at: string
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          reason: string | null
+          record_id: string | null
+          search_text: string | null
+          table_name: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          business_id: string
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          reason?: string | null
+          record_id?: string | null
+          search_text?: never
+          table_name: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          business_id?: string
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          reason?: string | null
+          record_id?: string | null
+          search_text?: never
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           address: string | null
@@ -638,7 +688,7 @@ export type Database = {
         Returns: undefined
       }
       update_sale: {
-        Args: { _sale_id: string; _changes: Json }
+        Args: { _sale_id: string; _changes: Json; _reason?: string }
         Returns: Database["public"]["Tables"]["sales"]["Row"]
       }
     }

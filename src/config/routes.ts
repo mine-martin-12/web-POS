@@ -2,6 +2,7 @@ import {
   ClipboardCheck,
   Contact,
   HandCoins,
+  History,
   LayoutDashboard,
   type LucideIcon,
   Package,
@@ -87,6 +88,14 @@ export const APP_PAGES: AppPage[] = [
     description: "Invite staff and manage access",
     icon: Users,
     capability: "canManageUsers",
+    section: "admin",
+  },
+  {
+    path: "/app/activity",
+    title: "Activity",
+    description: "Audit trail of every change",
+    icon: History,
+    capability: "canViewAuditLog",
     section: "admin",
   },
   {

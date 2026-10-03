@@ -29,6 +29,7 @@ const CustomersPage = lazy(() => import("./features/customers/pages/CustomersPag
 const Settings = lazy(() => import("./pages/Settings"));
 const StaffPage = lazy(() => import("./features/staff/pages/StaffPage"));
 const ApprovalsPage = lazy(() => import("./features/approvals/pages/ApprovalsPage"));
+const ActivityPage = lazy(() => import("./features/activity/pages/ActivityPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -94,6 +95,14 @@ const App = () => (
                       }
                     />
                     <Route path="approvals" element={<ApprovalsPage />} />
+                    <Route
+                      path="activity"
+                      element={
+                        <RoleBasedAccess capability="canViewAuditLog">
+                          <ActivityPage />
+                        </RoleBasedAccess>
+                      }
+                    />
                     <Route path="settings" element={<Settings />} />
                     <Route path="*" element={<NotFound />} />
                   </Route>
