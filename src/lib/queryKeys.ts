@@ -1,7 +1,7 @@
 /**
  * Every React Query key in the app, in one place, so reads and invalidations always
- * agree. Keys are hierarchical: invalidating `queryKeys.staff.all` also refreshes
- * `queryKeys.staff.members()` and `queryKeys.staff.invitations()`.
+ * agree. Keys are hierarchical: invalidating `queryKeys.sales.all` also refreshes
+ * `queryKeys.sales.list()` and every `queryKeys.sales.range(…)`.
  */
 export const queryKeys = {
   staff: {
@@ -11,7 +11,17 @@ export const queryKeys = {
   },
   sales: {
     all: ["sales"] as const,
+    list: () => [...queryKeys.sales.all, "list"] as const,
     range: (from: string, to: string) => [...queryKeys.sales.all, "range", from, to] as const,
+  },
+  products: {
+    all: ["products"] as const,
+    list: () => [...queryKeys.products.all, "list"] as const,
+  },
+  credits: {
+    all: ["credits"] as const,
+    list: () => [...queryKeys.credits.all, "list"] as const,
+    payments: (creditId: string) => [...queryKeys.credits.all, "payments", creditId] as const,
   },
   customers: {
     all: ["customers"] as const,

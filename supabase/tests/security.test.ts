@@ -9,9 +9,11 @@ import {
   asUser,
   createBusiness,
   createDb,
+  createCustomerAs,
   createProduct,
   expectError,
   inviteMember,
+  recordSale,
   rows,
   signUp,
   type Db,
@@ -194,13 +196,18 @@ describe("tenant isolation", () => {
     expect(p.created_by).toBe(acme.staffId);
   });
 
-  it("a sale cannot reference another business's product", async () => {
+  it("sales can't be inserted directly, only through record_sale()", async () => {
     const msg = await asUser(db, acme.staffId, () =>
       expectError(db, "INSERT INTO sales (business_id, product_id, quantity, selling_price) VALUES ($1, $2, 1, 10)", [
         acme.businessId,
-        other.productId,
+        acme.productId,
       ]),
     );
+    expect(msg).toMatch(/permission denied/);
+  });
+
+  it("a sale cannot reference another business's product", async () => {
+    const msg = await recordSale(db, acme.staffId, other.productId).catch((e: Error) => e.message);
     expect(msg).toMatch(/Product not found/);
     const [{ stock_quantity }] = await rows<{ stock_quantity: number }>(
       db,
@@ -211,22 +218,12 @@ describe("tenant isolation", () => {
   });
 
   it("negative quantities cannot be used to inflate stock", async () => {
-    const msg = await asUser(db, acme.staffId, () =>
-      expectError(db, "INSERT INTO sales (business_id, product_id, quantity, selling_price) VALUES ($1, $2, -5, 10)", [
-        acme.businessId,
-        acme.productId,
-      ]),
-    );
-    expect(msg).toMatch(/sales_quantity_positive/);
+    const msg = await recordSale(db, acme.staffId, acme.productId, { quantity: -5 }).catch((e: Error) => e.message);
+    expect(msg).toMatch(/Quantity must be at least 1/);
   });
 
   it("selling more than the stock fails with a friendly message", async () => {
-    const msg = await asUser(db, acme.staffId, () =>
-      expectError(db, "INSERT INTO sales (business_id, product_id, quantity, selling_price) VALUES ($1, $2, 100000, 10)", [
-        acme.businessId,
-        acme.productId,
-      ]),
-    );
+    const msg = await recordSale(db, acme.staffId, acme.productId, { quantity: 100000 }).catch((e: Error) => e.message);
     expect(msg).toMatch(/Insufficient stock for "Widget"/);
   });
 });
@@ -236,20 +233,8 @@ describe("staff vs admin data access", () => {
   let adminSale: string;
 
   beforeAll(async () => {
-    [{ id: staffSale }] = await asUser(db, acme.staffId, () =>
-      rows<{ id: string }>(
-        db,
-        "INSERT INTO sales (business_id, product_id, quantity, selling_price) VALUES ($1, $2, 2, 80) RETURNING id",
-        [acme.businessId, acme.productId],
-      ),
-    );
-    [{ id: adminSale }] = await asUser(db, acme.adminId, () =>
-      rows<{ id: string }>(
-        db,
-        "INSERT INTO sales (business_id, product_id, quantity, selling_price) VALUES ($1, $2, 1, 80) RETURNING id",
-        [acme.businessId, acme.productId],
-      ),
-    );
+    staffSale = await recordSale(db, acme.staffId, acme.productId, { quantity: 2, price: 80 });
+    adminSale = await recordSale(db, acme.adminId, acme.productId, { quantity: 1, price: 80 });
   });
 
   it("staff see only the sales they recorded; admins see all", async () => {
@@ -259,16 +244,23 @@ describe("staff vs admin data access", () => {
     expect(adminView.map((s) => s.id).sort()).toEqual([staffSale, adminSale].sort());
   });
 
-  it("staff cannot edit a sale someone else recorded", async () => {
-    const updated = await asUser(db, acme.staffId, () =>
-      rows(db, "UPDATE sales SET selling_price = 1 WHERE id = $1 RETURNING id", [adminSale]),
-    );
-    expect(updated).toHaveLength(0);
+  it("staff cannot edit sales directly or through update_sale()", async () => {
+    for (const id of [adminSale, staffSale]) {
+      const direct = await asUser(db, acme.staffId, () =>
+        expectError(db, "UPDATE sales SET selling_price = 1 WHERE id = $1", [id]),
+      );
+      expect(direct).toMatch(/permission denied/);
+      const viaRpc = await asUser(db, acme.staffId, () =>
+        expectError(db, "SELECT update_sale($1, '{\"selling_price\": 1}')", [id]),
+      );
+      expect(viaRpc).toMatch(/Admin privileges required/);
+    }
   });
 
   it.each(["sales", "products", "credits"])("staff cannot delete %s", async (table) => {
     const [before] = await rows<{ n: number }>(db, `SELECT count(*)::int AS n FROM ${table}`);
-    await asUser(db, acme.staffId, () => db.query(`DELETE FROM ${table}`));
+    // Either refused outright (no privilege) or filtered to zero rows by RLS.
+    await asUser(db, acme.staffId, () => db.query(`DELETE FROM ${table}`)).catch(() => undefined);
     const [after] = await rows<{ n: number }>(db, `SELECT count(*)::int AS n FROM ${table}`);
     expect(after.n).toBe(before.n);
   });
@@ -308,20 +300,9 @@ describe("credits", () => {
   let creditId: string;
 
   beforeAll(async () => {
-    const [{ id: saleId }] = await asUser(db, acme.staffId, () =>
-      rows<{ id: string }>(
-        db,
-        "INSERT INTO sales (business_id, product_id, quantity, selling_price, payment_method) VALUES ($1, $2, 1, 100.10, 'credit') RETURNING id",
-        [acme.businessId, acme.productId],
-      ),
-    );
-    [{ id: creditId }] = await asUser(db, acme.staffId, () =>
-      rows<{ id: string }>(
-        db,
-        "INSERT INTO credits (business_id, sale_id, customer_name, amount_owed, due_date) VALUES ($1, $2, 'Wanjiku', 100.10, '2026-10-10') RETURNING id",
-        [acme.businessId, saleId],
-      ),
-    );
+    const customerId = await createCustomerAs(db, acme.staffId, "Wanjiku");
+    const saleId = await recordSale(db, acme.staffId, acme.productId, { price: 100.1, type: "credit", customerId });
+    [{ id: creditId }] = await rows<{ id: string }>(db, "SELECT id FROM credits WHERE sale_id = $1", [saleId]);
   });
 
   it("records payments atomically and updates status", async () => {
@@ -357,13 +338,7 @@ describe("credits", () => {
   });
 
   it("a credit cannot point at another business's sale", async () => {
-    const [{ id: otherSale }] = await asUser(db, other.adminId, () =>
-      rows<{ id: string }>(
-        db,
-        "INSERT INTO sales (business_id, product_id, quantity, selling_price) VALUES ($1, $2, 1, 10) RETURNING id",
-        [other.businessId, other.productId],
-      ),
-    );
+    const otherSale = await recordSale(db, other.adminId, other.productId, { price: 10 });
     const msg = await asUser(db, acme.staffId, () =>
       expectError(
         db,
@@ -371,7 +346,8 @@ describe("credits", () => {
         [acme.businessId, otherSale],
       ),
     );
-    expect(msg).toMatch(/Sale not found/);
+    // Credits are created only by record_sale(); direct inserts are refused outright.
+    expect(msg).toMatch(/permission denied/);
   });
 });
 

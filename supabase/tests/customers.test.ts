@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { beforeAll, describe, expect, it } from "vitest";
 import { maskPhone, normalizePhone } from "../../src/lib/phone";
-import { asUser, createBusiness, createDb, createProduct, expectError, inviteMember, rows, type Db } from "./harness";
+import { asUser, createBusiness, createDb, createProduct, expectError, inviteMember, recordSale, rows, type Db } from "./harness";
 
 let db: Db;
 let acme: { businessId: string; adminId: string; staffId: string };
@@ -141,13 +141,7 @@ describe("customers", () => {
 
   it("sales and credits can't point at another business's customer", async () => {
     const productId = await createProduct(db, other.businessId);
-    const msg = await asUser(db, other.adminId, () =>
-      expectError(
-        db,
-        "INSERT INTO sales (business_id, product_id, quantity, selling_price, customer_id) VALUES ($1, $2, 1, 10, $3)",
-        [other.businessId, productId, wanjiku],
-      ),
-    );
+    const msg = await recordSale(db, other.adminId, productId, { customerId: wanjiku }).catch((e: Error) => e.message);
     expect(msg).toMatch(/Customer not found/);
   });
 });

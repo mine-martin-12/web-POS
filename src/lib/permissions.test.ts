@@ -14,6 +14,7 @@ describe("capabilitiesFor", () => {
       "canManageBusiness",
       "canViewFinancialData",
       "canDeleteRecords",
+      "canEditRecords",
       "canBulkOperations",
       "canViewCustomerPhone",
       "canReviewChanges",

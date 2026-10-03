@@ -282,7 +282,7 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
-          business_id: string
+          business_id?: string
           buying_price?: number
           created_at?: string
           created_by?: string | null
@@ -539,6 +539,14 @@ export type Database = {
         Args: { _credit_id: string; _amount: number; _payment_method?: string }
         Returns: Database["public"]["Tables"]["credits"]["Row"]
       }
+      record_sale: {
+        Args: { _product_id: string; _quantity: number; _selling_price: number; _payment_type?: string; _payment_method?: string; _deposit?: number; _due_date?: string; _customer_id?: string; _sale_day?: string; _description?: string }
+        Returns: Database["public"]["Tables"]["sales"]["Row"]
+      }
+      sale_timestamp: {
+        Args: { _day: string; _tz: string }
+        Returns: string
+      }
       search_customers: {
         Args: { _query?: string; _limit?: number }
         Returns: Database["public"]["Views"]["customers_secure"]["Row"][]
@@ -546,6 +554,10 @@ export type Database = {
       update_business_details: {
         Args: { _name: string; _phone?: string; _email?: string; _address?: string; _currency?: string; _timezone?: string }
         Returns: Database["public"]["Tables"]["businesses"]["Row"]
+      }
+      update_sale: {
+        Args: { _sale_id: string; _changes: Json }
+        Returns: Database["public"]["Tables"]["sales"]["Row"]
       }
     }
     Enums: {

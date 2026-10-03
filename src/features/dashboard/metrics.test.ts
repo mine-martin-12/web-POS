@@ -18,6 +18,7 @@ function sale(partial: Partial<SaleRow>): SaleRow {
     description: null,
     created_at: "2026-10-02T09:00:00Z",
     created_by: null,
+    customer: null,
     credit: null,
     ...partial,
   };
