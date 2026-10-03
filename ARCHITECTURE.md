@@ -65,14 +65,21 @@ The database is the security boundary. The UI only hides what a user can't use.
    - Roles live in `user_roles (user_id, business_id, role)`, not on the profile.
    - Clients can read their own role but can't write any role.
    - Helpers for policies and functions: `get_user_business(uid)`, `has_role(uid, role)`, `is_admin()`. They are `SECURITY DEFINER`, scoped to the current business, and ignore deactivated members.
+   - `get_user_business()` also returns NULL when the business is expired or suspended, so every policy, trigger and RPC stops working for it. `get_member_business()` is the status-blind variant, used only for the business row itself (needed by the `/expired` page).
 3. **Row-level security** on every table:
    - Members read their own business's rows.
    - Staff see only the sales they recorded.
    - Deletes and admin tables (`invitations`, other members' roles) require `is_admin()`.
 4. **Column grants.** Users can update only `first_name` and `last_name` on their own profile.
-   - `businesses`, `user_roles`, `invitations` and `credit_payments` have no client write access at all.
-   - Changes to them go through RPCs or edge functions.
-5. **RPCs** (`SECURITY DEFINER`, which check membership and role themselves): `record_credit_payment`, `add_stock`, `update_business_details`, `complete_invitation`, `is_business_name_available`. Writes that must be atomic happen here, never as read-modify-write from the browser.
+   - `businesses` (including `account_status` / `trial_ends_at`), `user_roles`, `invitations`, `credit_payments`, `pending_updates` and `activity_logs` have no client write access at all.
+   - `sales` and `credits` are written only through RPCs; staff may insert `products` and `customers`, admins update them.
+   - `customers.phone` is not readable by any client. Reads go through the `customers_secure` view or `search_customers()`, which mask the number for non-admins (`+2547123***90`).
+5. **RPCs** (`SECURITY DEFINER`, which check membership and role themselves). Writes that must be atomic happen here, never as read-modify-write from the browser.
+   - Sales: `record_sale` (sale, credit and deposit in one transaction), `update_sale` (admin, per-column whitelist).
+   - Money and stock: `record_credit_payment`, `add_stock`, `update_product`.
+   - Customers: `create_customer` (phone match reuses the record; name match asks first), `search_customers`.
+   - Approvals: `submit_change`, `resubmit_change`, `review_change` (re-checks the record, then applies through the same whitelist), `archive_change`.
+   - Account: `update_business_details`, `complete_invitation`, `is_business_name_available`.
 6. **Sign-up.** The `handle_new_user` trigger never trusts client metadata for role or business.
    - Self sign-up always creates a new business, with the signer as its admin.
    - Staff join only through an invitation: a random token bound to an email, valid for 7 days, used once. The role comes from the invitation row.
@@ -82,17 +89,23 @@ The database is the security boundary. The UI only hides what a user can't use.
    - Both verify the JWT, then read the caller's role from the database. They use the service role, so every query must be scoped to the caller's business.
    - Admins can't demote or deactivate themselves.
    - The database refuses to leave a business without an active admin.
-8. **Capabilities in the UI.** Components check capabilities from `useSecurity()` (matrix in `src/lib/permissions.ts`), never raw role strings.
+8. **Audit trail.** The `log_activity` trigger writes `activity_logs` for every business table (changed fields only, phones masked, invitation tokens dropped). Reasons from change requests are captured through the transaction-local `app.change_reason` setting. Only admins can read the log.
+9. **Approvals.** Staff can't edit saved sales, credits or products. They submit a change request with a reason, and an admin reviews it.
+10. **Capabilities in the UI.** Components check capabilities from `useSecurity()` (matrix in `src/lib/permissions.ts`), never raw role strings.
    - `RoleBasedAccess` guards admin pages.
    - Nothing admin-only renders while the role is still loading.
 
-Every rule above has a test in `supabase/tests/security.test.ts`. The tests run the real migrations and execute SQL as role `authenticated`, which is exactly what a direct API call does.
+Every rule above has a test in `supabase/tests/` (`security`, `customers`, `sales`, `approvals`, `audit`, `subscription`, `upgrade`). The tests run the real migrations and execute SQL as role `authenticated`, which is exactly what a direct API call does.
 
 ## Data and money conventions
 
 - **Server reads** go through React Query with keys from `src/lib/queryKeys.ts`. Invalidate those keys after writes.
-- **Money** is shown with `<Money value={…}/>` (business currency, tabular figures, `.sensitive` for privacy mode). Format strings with `formatMoney`.
-- **Dates:** calendar dates (e.g. `credits.due_date`) are SQL `date` values. Format them with `format(d, "yyyy-MM-dd")`, never `toISOString()`, which shifts to UTC.
+- **Paging:** any query whose total matters uses `fetchAll` (`src/lib/fetchAll.ts`) with a stable, unique order. PostgREST silently stops at 1000 rows.
+- **Money maths** happens only in `src/lib/finance.ts`, in integer cents. `saleMoney`/`summarizeSales` guarantee billed = collected + outstanding. `pctChange` divides by |previous|.
+- **Money display:** `<Money value={…}/>` or `<Money cents={…}/>` (business currency, tabular figures, `.sensitive` for privacy mode). Format strings with `formatMoney`.
+- **Phones** are normalised with `normalizePhone` (`src/lib/phone.ts`), which mirrors SQL `normalize_phone()`. A test runs both implementations on the same inputs.
+- **CSV:** use `toCsv`/`downloadCsv` (`src/lib/csv.ts`): BOM, quoting, formula-injection guard, business header, readable sequential IDs.
+- **Dates:** day and month keys come from `src/lib/dates.ts` in the business time zone (`dayKey`, `monthKey`, `startOfDayUtc`). Calendar dates (e.g. `credits.due_date`) are SQL `date` values; never use `toISOString()` for them, because it shifts to UTC.
 
 ## How to add a feature
 
