@@ -64,6 +64,11 @@
 
     --radius: 0.5rem;
 
+    /* Chart series (validated: adjacent CVD ΔE 9.2 light / 9.4 dark). Slot 3 is below
+       3:1 on light surfaces, so charts using it always carry a legend and tooltips. */
+    --chart-1: 213 67% 50%;
+    --chart-2: 17 82% 56%;
+    --chart-3: 158 73% 40%;
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 225 15% 25%;
     --sidebar-primary: 220 70% 50%;
@@ -130,6 +135,9 @@
     --shadow-elegant: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
     --shadow-card: 0 2px 12px -2px hsl(0 0% 0% / 0.15);
     --shadow-glow: 0 0 30px hsl(220 70% 55% / 0.4);
+    --chart-1: 213 76% 56%;
+    --chart-2: 17 70% 50%;
+    --chart-3: 159 73% 36%;
     --sidebar-background: 225 15% 10%;
     --sidebar-foreground: 210 30% 88%;
     --sidebar-primary: 220 70% 60%;

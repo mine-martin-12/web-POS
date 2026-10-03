@@ -734,7 +734,7 @@ export type Database = {
       }
       sales_month_summary: {
         Args: Record<PropertyKey, never>
-        Returns: { month: string; sales_count: number; billed: number; collected: number; outstanding: number }[]
+        Returns: { month: string; sales_count: number; billed: number; collected: number; outstanding: number; cost: number }[]
       }
       search_customers: {
         Args: { _query?: string; _limit?: number }

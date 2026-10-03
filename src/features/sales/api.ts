@@ -110,6 +110,8 @@ export interface MonthSummary {
   billed: number;
   collected: number;
   outstanding: number;
+  /** Cost of goods sold that month (unit cost at the time of sale). */
+  cost: number;
 }
 
 /** Per-month totals for the archive grid (staff: their own sales). */
@@ -122,6 +124,7 @@ export async function fetchMonthSummary(): Promise<MonthSummary[]> {
     billed: Number(m.billed),
     collected: Number(m.collected),
     outstanding: Number(m.outstanding),
+    cost: Number(m.cost),
   }));
 }
 

@@ -22,7 +22,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Expired = lazy(() => import("./pages/Expired"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Dashboard = lazy(() => import("./features/dashboard/pages/DashboardPage"));
 const Sales = lazy(() => import("./features/sales/pages/SalesPage"));
 const Credits = lazy(() => import("./features/credits/pages/CreditsPage"));
 const Products = lazy(() => import("./features/products/pages/ProductsPage"));
