@@ -18,6 +18,34 @@ CREATE TABLE IF NOT EXISTS public.expenses (
 );
 CREATE INDEX IF NOT EXISTS idx_expenses_business_date ON public.expenses (business_id, expense_date DESC);
 
+-- Copy rows from an expenses table that existed before this upgrade (kept as
+-- expenses_legacy by the Phase 1 migration). Read through jsonb so missing or differently
+-- typed columns don't break the copy; rows without a known business or a positive amount stay
+-- behind in expenses_legacy. Runs before the triggers so audit and tenant checks don't fire.
+DO $$
+BEGIN
+  IF to_regclass('public.expenses_legacy') IS NULL THEN
+    RETURN;
+  END IF;
+  EXECUTE $copy$
+    INSERT INTO public.expenses (id, business_id, category, description, amount, expense_date, created_by, created_at)
+    SELECT
+      CASE WHEN j->>'id' ~* '^[0-9a-f-]{36}$' THEN (j->>'id')::uuid ELSE gen_random_uuid() END,
+      b.id,
+      COALESCE(NULLIF(btrim(j->>'category'), ''), 'Other'),
+      NULLIF(btrim(j->>'description'), ''),
+      round((j->>'amount')::numeric, 2),
+      COALESCE(left(j->>'expense_date', 10), left(j->>'created_at', 10), current_date::text)::date,
+      u.id,
+      COALESCE((j->>'created_at')::timestamptz, now())
+    FROM (SELECT to_jsonb(l) AS j FROM public.expenses_legacy l) s
+    JOIN public.businesses b ON b.id::text = s.j->>'business_id'
+    LEFT JOIN auth.users u ON u.id::text = s.j->>'created_by'
+    WHERE (j->>'amount') ~ '^\s*[0-9]+(\.[0-9]+)?\s*$' AND (j->>'amount')::numeric >= 0.005
+    ON CONFLICT (id) DO NOTHING
+  $copy$;
+END $$;
+
 CREATE TRIGGER update_expenses_updated_at
   BEFORE UPDATE ON public.expenses
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
