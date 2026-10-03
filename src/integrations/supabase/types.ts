@@ -827,20 +827,7 @@ export type Database = {
       }
     }
     Views: {
-      customers_secure: {
-        Row: {
-          archived_at: string | null
-          business_id: string | null
-          created_at: string | null
-          created_by: string | null
-          id: string | null
-          name: string | null
-          notes: string | null
-          phone: string | null
-          updated_at: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       add_stock: {
@@ -862,6 +849,10 @@ export type Database = {
       create_customer: {
         Args: { _name: string; _phone?: string; _notes?: string; _force?: boolean }
         Returns: Json
+      }
+      customers_secure: {
+        Args: Record<PropertyKey, never>
+        Returns: { id: string; business_id: string; name: string; phone: string; notes: string; created_by: string; created_at: string; updated_at: string; archived_at: string }[]
       }
       get_current_user_business_id: {
         Args: Record<PropertyKey, never>
@@ -929,7 +920,7 @@ export type Database = {
       }
       search_customers: {
         Args: { _query?: string; _limit?: number }
-        Returns: Database["public"]["Views"]["customers_secure"]["Row"][]
+        Returns: { id: string; business_id: string; name: string; phone: string; notes: string; created_by: string; created_at: string; updated_at: string; archived_at: string }[]
       }
       sms_audience: {
         Args: { _audience: string }

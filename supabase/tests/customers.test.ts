@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { beforeAll, describe, expect, it } from "vitest";
 import { maskPhone, normalizePhone } from "../../src/lib/phone";
-import { asUser, createBusiness, createDb, createProduct, expectError, inviteMember, recordSale, rows, type Db } from "./harness";
+import { asAnon, asUser, createBusiness, createDb, createProduct, expectError, inviteMember, recordSale, rows, type Db } from "./harness";
 
 let db: Db;
 let acme: { businessId: string; adminId: string; staffId: string };
@@ -74,13 +74,33 @@ describe("customers", () => {
     }
   });
 
+  it("reads customers through a SECURITY DEFINER function, not a view", async () => {
+    const [{ view }] = await rows<{ view: string | null }>(db, "SELECT to_regclass('public.customers_secure')::text AS view");
+    expect(view).toBeNull();
+    const [fn] = await rows<{ secdef: boolean; config: string[] | null }>(
+      db,
+      "SELECT prosecdef AS secdef, proconfig AS config FROM pg_proc WHERE oid = 'public.customers_secure()'::regprocedure",
+    );
+    expect(fn).toEqual({ secdef: true, config: ["search_path=public"] });
+    const msg = await asAnon(db, () => expectError(db, "SELECT * FROM customers_secure()"));
+    expect(msg).toMatch(/permission denied/);
+  });
+
+  it("returns the same columns the view did", async () => {
+    const [row] = await asUser(db, acme.adminId, () => rows(db, "SELECT * FROM customers_secure() WHERE id = $1", [wanjiku]));
+    expect(Object.keys(row)).toEqual([
+      "id", "business_id", "name", "phone", "notes", "created_by", "created_at", "updated_at", "archived_at",
+    ]);
+    expect(row.business_id).toBe(acme.businessId);
+  });
+
   it("masks phones for staff and shows them to admins", async () => {
     const [staffView] = await asUser(db, acme.staffId, () =>
-      rows<{ phone: string }>(db, "SELECT phone FROM customers_secure WHERE id = $1", [wanjiku]),
+      rows<{ phone: string }>(db, "SELECT phone FROM customers_secure() WHERE id = $1", [wanjiku]),
     );
     expect(staffView.phone).toBe("+2547123***78");
     const [adminView] = await asUser(db, acme.adminId, () =>
-      rows<{ phone: string }>(db, "SELECT phone FROM customers_secure WHERE id = $1", [wanjiku]),
+      rows<{ phone: string }>(db, "SELECT phone FROM customers_secure() WHERE id = $1", [wanjiku]),
     );
     expect(adminView.phone).toBe("+254712345678");
   });
@@ -128,7 +148,7 @@ describe("customers", () => {
   it("is invisible to other businesses", async () => {
     const found = await asUser(db, other.adminId, () => rows(db, "SELECT * FROM search_customers('0712345678')"));
     expect(found).toHaveLength(0);
-    const viaView = await asUser(db, other.adminId, () => rows(db, "SELECT * FROM customers_secure"));
+    const viaView = await asUser(db, other.adminId, () => rows(db, "SELECT * FROM customers_secure()"));
     expect(viaView).toHaveLength(0);
   });
 

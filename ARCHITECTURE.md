@@ -78,7 +78,7 @@ The database is the security boundary. The UI only hides what a user can't use.
 4. **Column grants.** Users can update only `first_name` and `last_name` on their own profile.
    - `businesses` (including `account_status` / `trial_ends_at`), `user_roles`, `invitations`, `credit_payments`, `pending_updates` and `activity_logs` have no client write access at all.
    - `sales` and `credits` are written only through RPCs; staff may insert `products` and `customers`, admins update them.
-   - `customers.phone` is not readable by any client. Reads go through the `customers_secure` view or `search_customers()`, which mask the number for non-admins (`+2547123***90`).
+   - `customers.phone` is not readable by any client. Reads go through the SECURITY DEFINER functions `customers_secure()` and `search_customers()`, which mask the number for non-admins (`+2547123***90`).
 5. **RPCs** (`SECURITY DEFINER`, which check membership and role themselves). Writes that must be atomic happen here, never as read-modify-write from the browser.
    - Sales: `record_sale` (sale, credit and deposit in one transaction), `update_sale` (admin, per-column whitelist).
    - Money and stock: `record_credit_payment`, `add_stock`, `update_product`.

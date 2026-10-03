@@ -12,15 +12,15 @@ export async function searchCustomers(mode: PickerMode, term: string, limit = 20
   return (data ?? []) as Customer[];
 }
 
-type SecureRow = Pick<Database["public"]["Views"]["customers_secure"]["Row"], keyof Customer>;
+type SecureRow = Pick<Database["public"]["Functions"]["customers_secure"]["Returns"][number], keyof Customer>;
 
 export async function fetchCustomers(): Promise<Customer[]> {
-  // View columns are typed nullable; id, name and created_at are NOT NULL in the table.
+  // customers_secure() is the only way to read customers with their (masked) phone.
   const rows = await fetchAll<SecureRow>(() =>
     supabase
-      .from("customers_secure")
-      .select(COLUMNS)
+      .rpc("customers_secure")
       .is("archived_at", null)
+      .select(COLUMNS)
       .order("name", { ascending: true })
       .order("id", { ascending: true }),
   );

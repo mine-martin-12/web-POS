@@ -49,7 +49,7 @@ describe("trial and subscription gating", () => {
   ])("blocks all data access for %s, at the database level", async (_label, status, endsAt) => {
     await setStatus(status, endsAt);
     for (const userId of [acme.adminId, acme.staffId]) {
-      for (const table of ["products", "sales", "credits", "customers_secure", "pending_updates", "activity_logs"]) {
+      for (const table of ["products", "sales", "credits", "customers_secure()", "pending_updates", "activity_logs"]) {
         const found = await asUser(db, userId, () => rows(db, `SELECT * FROM ${table}`));
         expect(found, `${table} for ${userId}`).toHaveLength(0);
       }
