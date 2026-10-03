@@ -31,6 +31,7 @@ const Settings = lazy(() => import("./pages/Settings"));
 const StaffPage = lazy(() => import("./features/staff/pages/StaffPage"));
 const ApprovalsPage = lazy(() => import("./features/approvals/pages/ApprovalsPage"));
 const ActivityPage = lazy(() => import("./features/activity/pages/ActivityPage"));
+const ExpensesPage = lazy(() => import("./features/expenses/pages/ExpensesPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -97,6 +98,14 @@ const App = () => (
                       }
                     />
                     <Route path="approvals" element={<ApprovalsPage />} />
+                    <Route
+                      path="expenses"
+                      element={
+                        <RoleBasedAccess capability="canManageExpenses">
+                          <ExpensesPage />
+                        </RoleBasedAccess>
+                      }
+                    />
                     <Route
                       path="activity"
                       element={

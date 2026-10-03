@@ -34,6 +34,10 @@ export const queryKeys = {
     list: () => [...queryKeys.customers.all, "list"] as const,
     search: (mode: string, term: string) => [...queryKeys.customers.all, "search", mode, term] as const,
   },
+  expenses: {
+    all: ["expenses"] as const,
+    range: (from: string, to: string) => [...queryKeys.expenses.all, "range", from, to] as const,
+  },
   activity: {
     all: ["activity"] as const,
     page: (filters: object, page: number, size: number) => [...queryKeys.activity.all, filters, page, size] as const,

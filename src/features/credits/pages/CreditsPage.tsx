@@ -56,7 +56,7 @@ const CreditsPage: React.FC = () => {
   const [deleting, setDeleting] = useState<CreditListRow | null>(null);
 
   const isOverdue = (c: CreditListRow) => c.status !== "paid" && c.due_date < today;
-  const all = credits.data ?? [];
+  const all = useMemo(() => credits.data ?? [], [credits.data]);
   const counts: Record<Filter, number> = {
     open: all.filter((c) => c.status !== "paid").length,
     overdue: all.filter(isOverdue).length,

@@ -12,6 +12,8 @@ import {
   UserPlus,
   UserRoundPlus,
   Users,
+  Wallet,
+  WalletCards,
 } from "lucide-react";
 import type { Capability } from "@/lib/permissions";
 
@@ -91,6 +93,14 @@ export const APP_PAGES: AppPage[] = [
     section: "admin",
   },
   {
+    path: "/app/expenses",
+    title: "Expenses",
+    description: "Rent, wages and other running costs",
+    icon: Wallet,
+    capability: "canManageExpenses",
+    section: "admin",
+  },
+  {
     path: "/app/activity",
     title: "Activity",
     description: "Audit trail of every change",
@@ -142,6 +152,15 @@ export const QUICK_ACTIONS: QuickAction[] = [
     description: "Save a customer's name and phone",
     icon: UserRoundPlus,
     to: "/app/customers?new=1",
+  },
+  {
+    id: "new-expense",
+    label: "Record expense",
+    shortLabel: "Add",
+    description: "Log a running cost like rent or wages",
+    icon: WalletCards,
+    to: "/app/expenses?new=1",
+    capability: "canManageExpenses",
   },
   {
     id: "invite-member",
