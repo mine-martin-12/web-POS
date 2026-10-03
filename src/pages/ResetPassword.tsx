@@ -114,7 +114,7 @@ const ResetPassword = () => {
         // Force a page reload to clear recovery mode and establish normal session
         window.location.href = '/dashboard';
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",

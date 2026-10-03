@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/errors";
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -81,10 +82,10 @@ const Settings: React.FC = () => {
 
       toast({ title: 'Success', description: 'Profile updated successfully' });
       await refreshProfile();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update profile',
+        description: getErrorMessage(error, 'Failed to update profile'),
         variant: 'destructive',
       });
     } finally {
@@ -115,10 +116,10 @@ const Settings: React.FC = () => {
 
       toast({ title: 'Success', description: 'Business settings updated successfully' });
       await refreshProfile();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update business settings',
+        description: getErrorMessage(error, 'Failed to update business settings'),
         variant: 'destructive',
       });
     } finally {
@@ -154,10 +155,10 @@ const Settings: React.FC = () => {
 
       toast({ title: 'Success', description: 'Password updated successfully' });
       passwordForm.reset();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update password',
+        description: getErrorMessage(error, 'Failed to update password'),
         variant: 'destructive',
       });
     } finally {

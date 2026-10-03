@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/errors";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -122,7 +123,7 @@ const Products: React.FC = () => {
 
       if (error) throw error;
       setProducts(data || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to load products",
@@ -180,10 +181,10 @@ const Products: React.FC = () => {
       setEditingProduct(null);
       form.reset();
       fetchProducts();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to save product",
+        description: getErrorMessage(error, "Failed to save product"),
         variant: "destructive",
       });
     }
@@ -217,7 +218,7 @@ const Products: React.FC = () => {
       setStockProduct(null);
       stockForm.reset();
       fetchProducts();
-    } catch (error: any) {
+    } catch (error) {
       setIsStockConfirmOpen(false);
       toast({
         title: "Error",
@@ -264,7 +265,7 @@ const Products: React.FC = () => {
       if (error) throw error;
       toast({ title: "Success", description: "Product deleted successfully" });
       fetchProducts();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to delete product",

@@ -85,8 +85,3 @@ export const printReceipt = (receiptHtml: string) => {
   printWindow.document.close();
 };
 
-export const generateReceiptHtml = (saleData: any, businessInfo?: any) => {
-  // This function would generate the receipt HTML
-  // For now, we'll use the React component's rendered output
-  return '';
-};

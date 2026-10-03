@@ -82,7 +82,7 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
           duration: 5000,
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Reset password error:', error);
       toast({
         title: "Error",

@@ -692,7 +692,7 @@ const Dashboard = () => {
                       border: "1px solid hsl(var(--border))",
                       borderRadius: "6px",
                     }}
-                    formatter={(value: any, name: string) => [
+                    formatter={(value, name) => [
                       formatCurrency(Number(value)),
                       name === "actualSales" ? "Actual Revenue" : 
                       name === "actualProfit" ? "Actual Profit" :
@@ -762,7 +762,7 @@ const Dashboard = () => {
                       border: "1px solid hsl(var(--border))",
                       borderRadius: "6px",
                     }}
-                    formatter={(value: any) => [
+                    formatter={(value) => [
                       formatCurrency(Number(value)),
                       "Total Sales",
                     ]}

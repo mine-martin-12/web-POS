@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/errors";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -184,7 +185,7 @@ const Sales: React.FC = () => {
 
       if (error) throw error;
       setSales((data || []) as Sale[]);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to load sales",
@@ -204,7 +205,7 @@ const Sales: React.FC = () => {
 
       if (error) throw error;
       setProducts(data || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to load products",
@@ -330,10 +331,10 @@ const Sales: React.FC = () => {
       form.reset();
       fetchSales();
       fetchProducts(); // Refresh products to show updated stock
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to save sale",
+        description: getErrorMessage(error, "Failed to save sale"),
         variant: "destructive",
       });
     }
@@ -392,7 +393,7 @@ const Sales: React.FC = () => {
       fetchSales();
       setIsDeleteConfirmOpen(false);
       setSaleToDelete(null);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to delete sale",
@@ -420,8 +421,8 @@ const Sales: React.FC = () => {
           ? (sale.selling_price - sale.products.buying_price) * sale.quantity
           : 0;
         let profitStatus = "Realized";
-        if (sale.payment_method === "credit" && (sale as any).credits?.[0]) {
-          const credit = (sale as any).credits[0];
+        if (sale.payment_method === "credit" && sale.credits?.[0]) {
+          const credit = sale.credits[0];
           const amountPaid = Number(credit.amount_paid) || 0;
           const amountOwed = Number(credit.amount_owed) || 0;
           const paymentPercentage =
@@ -600,9 +601,9 @@ const Sales: React.FC = () => {
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           {sale.payment_method === "credit" &&
-                          (sale as any).credits?.[0] ? (
+                          sale.credits?.[0] ? (
                             (() => {
-                              const credit = (sale as any).credits[0];
+                              const credit = sale.credits[0];
                               const amountPaid =
                                 Number(credit.amount_paid) || 0;
                               const amountOwed =
@@ -661,9 +662,9 @@ const Sales: React.FC = () => {
                       <TableCell>
                         <div className="flex flex-col">
                           {sale.payment_method === "credit" &&
-                          (sale as any).credits?.[0] ? (
+                          sale.credits?.[0] ? (
                             (() => {
-                              const credit = (sale as any).credits[0];
+                              const credit = sale.credits[0];
                               const amountPaid =
                                 Number(credit.amount_paid) || 0;
                               const amountOwed =

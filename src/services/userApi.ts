@@ -1,6 +1,6 @@
+import { getErrorMessage } from "@/lib/errors";
 import { User, CreateUserRequest, UpdateUserRequest } from '@/types/user';
 import { supabase } from '@/integrations/supabase/client';
-import { useCSRFProtection } from '@/hooks/useCSRFProtection';
 
 export const userApi = {
   async getUsers(): Promise<User[]> {
@@ -10,7 +10,7 @@ export const userApi = {
       .order('created_at', { ascending: false });
     
     if (error) {
-      throw new Error(error.message || 'Failed to fetch users');
+      throw new Error(getErrorMessage(error, 'Failed to fetch users'));
     }
     
     return data.map(profile => ({
@@ -150,7 +150,7 @@ export const userApi = {
       .maybeSingle();
     
     if (error) {
-      throw new Error(error.message || 'Failed to update user');
+      throw new Error(getErrorMessage(error, 'Failed to update user'));
     }
     
     if (!data) {
@@ -177,7 +177,7 @@ export const userApi = {
 
       if (error) {
         console.error('Edge function error:', error);
-        throw new Error(error.message || 'Failed to delete user');
+        throw new Error(getErrorMessage(error, 'Failed to delete user'));
       }
 
       if (data?.error) {
@@ -193,9 +193,9 @@ export const userApi = {
       
       // Add a small delay to ensure cleanup
       await new Promise(resolve => setTimeout(resolve, 500));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Delete user error:', error);
-      throw new Error(error.message || 'Failed to delete user');
+      throw new Error(getErrorMessage(error, 'Failed to delete user'));
     }
   },
 };
