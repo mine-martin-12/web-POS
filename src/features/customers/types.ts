@@ -1,4 +1,4 @@
-/** A customer as clients see it (via customers_secure: phone masked for non-admins). */
+/** A customer as clients see it (via customers_secure(): phone masked for non-admins). */
 export interface Customer {
   id: string;
   name: string;

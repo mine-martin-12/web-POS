@@ -18,6 +18,7 @@ export const queryKeys = {
     all: ["sales"] as const,
     list: () => [...queryKeys.sales.all, "list"] as const,
     range: (from: string, to: string) => [...queryKeys.sales.all, "range", from, to] as const,
+    months: () => [...queryKeys.sales.all, "months"] as const,
   },
   products: {
     all: ["products"] as const,
@@ -27,15 +28,30 @@ export const queryKeys = {
     all: ["credits"] as const,
     list: () => [...queryKeys.credits.all, "list"] as const,
     payments: (creditId: string) => [...queryKeys.credits.all, "payments", creditId] as const,
+    paymentsRange: (from: string, to: string) => [...queryKeys.credits.all, "payments-range", from, to] as const,
   },
   customers: {
     all: ["customers"] as const,
     list: () => [...queryKeys.customers.all, "list"] as const,
     search: (mode: string, term: string) => [...queryKeys.customers.all, "search", mode, term] as const,
   },
+  expenses: {
+    all: ["expenses"] as const,
+    range: (from: string, to: string) => [...queryKeys.expenses.all, "range", from, to] as const,
+  },
   activity: {
     all: ["activity"] as const,
     page: (filters: object, page: number, size: number) => [...queryKeys.activity.all, filters, page, size] as const,
+  },
+  notifications: {
+    all: ["notifications"] as const,
+    list: () => [...queryKeys.notifications.all, "list"] as const,
+    preferences: () => [...queryKeys.notifications.all, "preferences"] as const,
+  },
+  messaging: {
+    all: ["messaging"] as const,
+    history: (since: string) => [...queryKeys.messaging.all, "history", since] as const,
+    templates: () => [...queryKeys.messaging.all, "templates"] as const,
   },
   nav: {
     all: ["nav"] as const,

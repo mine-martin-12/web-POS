@@ -12,6 +12,7 @@ const HIDDEN_ON = ["/app/settings", "/app/reports", "/app/activity"];
 const ACTION_FOR_PAGE: Record<string, QuickAction["id"]> = {
   "/app/products": "new-product",
   "/app/customers": "new-customer",
+  "/app/expenses": "new-expense",
   "/app/staff": "invite-member",
 };
 

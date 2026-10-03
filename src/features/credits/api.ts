@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { addDaysToKey, startOfDayUtc } from "@/lib/dates";
 import { fetchAll } from "@/lib/fetchAll";
 import type { PaidMethod } from "@/features/sales/types";
 
@@ -73,4 +74,18 @@ export async function recordCreditPayment(input: { creditId: string; amount: num
   });
   if (error) throw error;
   return data;
+}
+
+/** Credit payments received on business-local days fromKey..toKey (deposits included). */
+export async function fetchPaymentsInRange(fromKey: string, toKey: string, timeZone: string) {
+  const rows = await fetchAll<{ id: string; amount: number; payment_method: string; paid_at: string }>(() =>
+    supabase
+      .from("credit_payments")
+      .select("id, amount, payment_method, paid_at")
+      .gte("paid_at", startOfDayUtc(fromKey, timeZone))
+      .lt("paid_at", startOfDayUtc(addDaysToKey(toKey, 1), timeZone))
+      .order("paid_at")
+      .order("id"),
+  );
+  return rows.map((p) => ({ ...p, amount: Number(p.amount) }));
 }

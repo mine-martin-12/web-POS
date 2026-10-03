@@ -1,6 +1,6 @@
 import { dayKey } from "@/lib/dates";
 import { fromCents, saleMoney } from "@/lib/finance";
-import type { CsvColumn } from "@/lib/csv";
+import type { ExportSheet } from "@/lib/exports/table";
 import { PAYMENT_METHOD_LABELS, type PaidMethod, type SaleRow } from "./types";
 
 /** The payment method used most in the latest sales: the form's default. */
@@ -38,22 +38,23 @@ export function matchesSearch(sale: SaleRow, term: string): boolean {
   );
 }
 
-/** CSV columns. Sequential readable ids (S0001…) replace internal UUIDs. */
-export function saleCsvColumns(timeZone: string, includeProfit: boolean): CsvColumn<SaleRow>[] {
-  const columns: CsvColumn<SaleRow>[] = [
+/** The sales export (PDF / CSV / XLSX). Sequential readable ids (S0001…) replace
+ *  internal UUIDs; money columns total exactly like the tiles on screen. */
+export function salesSheet(rows: SaleRow[], timeZone: string, includeProfit: boolean): ExportSheet<SaleRow> {
+  const columns: ExportSheet<SaleRow>["columns"] = [
     { header: "ID", value: (_s, i) => `S${String(i + 1).padStart(4, "0")}` },
     { header: "Date", value: (s) => dayKey(s.sale_date, timeZone) },
-    { header: "Product", value: (s) => s.product_name },
-    { header: "Customer", value: (s) => s.customer?.name ?? s.credit?.customer_name ?? "Walk-in" },
-    { header: "Quantity", value: (s) => s.quantity },
-    { header: "Price each", value: (s) => s.selling_price.toFixed(2) },
-    { header: "Total", value: (s) => fromCents(saleMoney(s).billed).toFixed(2) },
-    { header: "Collected", value: (s) => fromCents(saleMoney(s).collected).toFixed(2) },
-    { header: "Outstanding", value: (s) => fromCents(saleMoney(s).outstanding).toFixed(2) },
+    { header: "Product", value: (s) => s.product_name, width: 24 },
+    { header: "Customer", value: (s) => s.customer?.name ?? s.credit?.customer_name ?? "Walk-in", width: 20 },
+    { header: "Qty", value: (s) => s.quantity },
+    { header: "Price each", value: (s) => s.selling_price, money: true, noTotal: true },
+    { header: "Total", value: (s) => fromCents(saleMoney(s).billed), money: true },
+    { header: "Collected", value: (s) => fromCents(saleMoney(s).collected), money: true },
+    { header: "Outstanding", value: (s) => fromCents(saleMoney(s).outstanding), money: true },
     { header: "Payment", value: (s) => (s.credit ? "Credit" : PAYMENT_METHOD_LABELS[s.payment_method]) },
     { header: "Status", value: (s) => saleMoney(s).status },
   ];
-  if (includeProfit) columns.push({ header: "Profit", value: (s) => fromCents(saleMoney(s).profit).toFixed(2) });
-  columns.push({ header: "Notes", value: (s) => s.description ?? "" });
-  return columns;
+  if (includeProfit) columns.push({ header: "Profit", value: (s) => fromCents(saleMoney(s).profit), money: true });
+  columns.push({ header: "Notes", value: (s) => s.description ?? "", width: 28 });
+  return { name: "Sales", columns, rows, total: true };
 }

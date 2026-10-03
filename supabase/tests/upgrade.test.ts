@@ -135,6 +135,14 @@ describe("upgrade from the legacy schema", () => {
     );
     expect(account).toEqual([{ business: "Mama Mboga", role: "admin" }]);
 
+    // Valid expenses are carried over; the rest stay in expenses_legacy.
+    const expenses = await asUser(db, owner.id, () =>
+      rows<{ category: string; amount: string; expense_date: string }>(
+        db,
+        "SELECT category, amount::text AS amount, expense_date::text AS expense_date FROM expenses",
+      ),
+    );
+    expect(expenses).toEqual([{ category: "Rent", amount: "1500.00", expense_date: "2026-10-01" }]);
     // Clients lose access to the old tables (and their broken policies).
     const [access] = await rows<{ anon: boolean; authed: boolean }>(
       db,

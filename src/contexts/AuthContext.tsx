@@ -60,11 +60,15 @@ interface LoadedAccount {
   role: AppRole | null;
 }
 
+/** Profile columns, listed so the query only asks for what clients are granted. */
+const PROFILE_COLUMNS =
+  "id, user_id, business_id, email, first_name, last_name, is_active, deactivated_at, created_at, updated_at";
+
 /** Profile, business and role in one round trip. */
 async function loadAccount(userId: string): Promise<LoadedAccount | null> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("*, businesses(*), user_roles(role)")
+    .select(`${PROFILE_COLUMNS}, businesses(*), user_roles(role)`)
     .eq("user_id", userId)
     .maybeSingle();
   if (error) throw error;

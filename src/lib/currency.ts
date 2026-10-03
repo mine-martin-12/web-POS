@@ -27,3 +27,7 @@ export function formatMoney(amount: number, currency = DEFAULT_CURRENCY, options
     return formatter(DEFAULT_CURRENCY, !!options.compact).format(value);
   }
 }
+
+/** Compact axis ticks: 12500 → "12.5K". */
+export const compactNumber = (value: number) =>
+  new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);

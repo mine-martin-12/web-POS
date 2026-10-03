@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * A customer phone number. The server already masks numbers for non-admins
- * (customers_secure); this only formats for display and keeps the mask if a full
+ * (customers_secure()); this only formats for display and keeps the mask if a full
  * number ever reaches a user without the capability.
  */
 export function MaskedPhone({ phone, className }: { phone: string | null | undefined; className?: string }) {

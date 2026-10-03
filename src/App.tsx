@@ -2,7 +2,6 @@ import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -22,7 +21,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Expired = lazy(() => import("./pages/Expired"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Dashboard = lazy(() => import("./features/dashboard/pages/DashboardPage"));
 const Sales = lazy(() => import("./features/sales/pages/SalesPage"));
 const Credits = lazy(() => import("./features/credits/pages/CreditsPage"));
 const Products = lazy(() => import("./features/products/pages/ProductsPage"));
@@ -31,6 +30,9 @@ const Settings = lazy(() => import("./pages/Settings"));
 const StaffPage = lazy(() => import("./features/staff/pages/StaffPage"));
 const ApprovalsPage = lazy(() => import("./features/approvals/pages/ApprovalsPage"));
 const ActivityPage = lazy(() => import("./features/activity/pages/ActivityPage"));
+const ExpensesPage = lazy(() => import("./features/expenses/pages/ExpensesPage"));
+const ReportsPage = lazy(() => import("./features/reports/pages/ReportsPage"));
+const MessagingPage = lazy(() => import("./features/messaging/pages/MessagingPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,7 +56,6 @@ const App = () => (
       <AuthProvider>
         <PrivacyModeProvider>
           <TooltipProvider delayDuration={300}>
-            <Toaster />
             <Sonner richColors closeButton />
             <InactivityManager />
             <BrowserRouter>
@@ -97,6 +98,30 @@ const App = () => (
                       }
                     />
                     <Route path="approvals" element={<ApprovalsPage />} />
+                    <Route
+                      path="messages"
+                      element={
+                        <RoleBasedAccess capability="canSendMessages">
+                          <MessagingPage />
+                        </RoleBasedAccess>
+                      }
+                    />
+                    <Route
+                      path="reports"
+                      element={
+                        <RoleBasedAccess capability="canViewFinancialData">
+                          <ReportsPage />
+                        </RoleBasedAccess>
+                      }
+                    />
+                    <Route
+                      path="expenses"
+                      element={
+                        <RoleBasedAccess capability="canManageExpenses">
+                          <ExpensesPage />
+                        </RoleBasedAccess>
+                      }
+                    />
                     <Route
                       path="activity"
                       element={

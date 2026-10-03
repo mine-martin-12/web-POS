@@ -1,12 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { AlertTriangle, HandCoins, MoreHorizontal, Pencil, Search, Trash2, Wallet } from "lucide-react";
+import { AlertTriangle, CheckCircle2, HandCoins, MoreHorizontal, Pencil, Trash2, Wallet } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSecurity } from "@/hooks/useSecurity";
+import { useUrlState } from "@/hooks/useUrlState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,12 +15,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Money } from "@/components/common/Money";
+import { DataTable, type DataTableColumn } from "@/components/common/data-table/DataTable";
 import { useDeleteSale } from "@/features/sales/hooks";
 import { parseDayKey, todayKey } from "@/lib/dates";
 import { getErrorMessage } from "@/lib/errors";
@@ -28,38 +29,44 @@ import { cn } from "@/lib/utils";
 import type { CreditListRow } from "../api";
 import { EditCreditDialog } from "../components/EditCreditDialog";
 import { RecordPaymentDialog } from "../components/RecordPaymentDialog";
-import { useCredits } from "../hooks";
+import { useCredits, useMarkCreditPaid } from "../hooks";
 
 type Filter = "open" | "overdue" | "paid" | "all";
+const FILTERS: Array<{ value: Filter; label: string }> = [
+  { value: "open", label: "Open" },
+  { value: "overdue", label: "Overdue" },
+  { value: "paid", label: "Paid" },
+  { value: "all", label: "All" },
+];
 
 const CreditsPage: React.FC = () => {
   const { business } = useAuth();
   const security = useSecurity();
   const credits = useCredits();
+  const markPaid = useMarkCreditPaid();
   const removeSale = useDeleteSale();
   const today = todayKey(business?.timezone);
+  const url = useUrlState();
+  const search = url.get("q");
+  const filter = (url.get("tab", "open") as Filter) || "open";
+  const focus = url.get("focus") || null;
 
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<Filter>("open");
   const [paying, setPaying] = useState<CreditListRow | null>(null);
   const [editing, setEditing] = useState<CreditListRow | null>(null);
   const [deleting, setDeleting] = useState<CreditListRow | null>(null);
 
   const isOverdue = (c: CreditListRow) => c.status !== "paid" && c.due_date < today;
-  const counts = useMemo(() => {
-    const all = credits.data ?? [];
-    return {
-      open: all.filter((c) => c.status !== "paid").length,
-      overdue: all.filter(isOverdue).length,
-      paid: all.filter((c) => c.status === "paid").length,
-      all: all.length,
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [credits.data, today]);
+  const all = useMemo(() => credits.data ?? [], [credits.data]);
+  const counts: Record<Filter, number> = {
+    open: all.filter((c) => c.status !== "paid").length,
+    overdue: all.filter(isOverdue).length,
+    paid: all.filter((c) => c.status === "paid").length,
+    all: all.length,
+  };
 
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return (credits.data ?? [])
+    return all
       .filter((c) =>
         filter === "open" ? c.status !== "paid" : filter === "overdue" ? isOverdue(c) : filter === "paid" ? c.status === "paid" : true,
       )
@@ -68,9 +75,26 @@ const CreditsPage: React.FC = () => {
           !term || c.customer_name.toLowerCase().includes(term) || (c.sale?.product_name ?? "").toLowerCase().includes(term),
       );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [credits.data, filter, search, today]);
+  }, [all, filter, search, today]);
   // Tiles summarise exactly the rows on screen.
   const totals = useMemo(() => summarizeCredits(rows), [rows]);
+  const overdueOnScreen = rows.filter(isOverdue).length;
+
+  useEffect(() => {
+    if (!focus || !credits.data) return;
+    // A notification may point at a paid credit that the default tab hides.
+    const target = credits.data.find((c) => c.id === focus);
+    if (target && target.status === "paid" && filter !== "paid" && filter !== "all") url.set({ tab: "all" });
+    document.getElementById(`row-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus, credits.data]);
+
+  const payAll = (list: CreditListRow[]) => {
+    for (const c of list) {
+      markPaid.mutate(c, { onSuccess: () => list.length === 1 && toast.success("Marked as paid", { description: c.customer_name }) });
+    }
+    if (list.length > 1) toast.success(`Marking ${list.length} credits as paid…`);
+  };
 
   const confirmDelete = async () => {
     if (!deleting) return;
@@ -116,6 +140,12 @@ const CreditsPage: React.FC = () => {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {c.status !== "paid" && (
+            <DropdownMenuItem onSelect={() => payAll([c])}>
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Mark fully paid
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onSelect={() => setEditing(c)}>
             <Pencil className="mr-2 h-4 w-4" />
             {security.canEditRecords ? "Edit customer / due date" : "Request change"}
@@ -134,6 +164,45 @@ const CreditsPage: React.FC = () => {
     </div>
   );
 
+  const columns: DataTableColumn<CreditListRow>[] = [
+    {
+      id: "customer",
+      header: "Customer",
+      sortValue: (c) => c.customer_name.toLowerCase(),
+      cell: (c) => (
+        <div>
+          <div className="font-medium">{c.customer_name}</div>
+          {c.sale && (
+            <div className="text-xs text-muted-foreground">
+              {c.sale.quantity} × {c.sale.product_name}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    { id: "owed", header: "Owed", align: "right", sortValue: (c) => c.amount_owed, cell: (c) => <Money value={c.amount_owed} /> },
+    { id: "paid", header: "Paid", align: "right", sortValue: (c) => c.amount_paid, cell: (c) => <Money value={c.amount_paid} /> },
+    {
+      id: "balance",
+      header: "Balance",
+      align: "right",
+      sortValue: (c) => creditOutstanding(c),
+      cell: (c) => <Money cents={creditOutstanding(c)} className="font-semibold" />,
+    },
+    {
+      id: "due",
+      header: "Due",
+      sortValue: (c) => c.due_date,
+      cell: (c) => (
+        <span className={cn("whitespace-nowrap", isOverdue(c) && "font-medium text-destructive")}>
+          {format(parseDayKey(c.due_date), "d MMM yyyy")}
+        </span>
+      ),
+    },
+    { id: "status", header: "Status", cell: statusBadge },
+    { id: "actions", header: <span className="sr-only">Actions</span>, cell: actions },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -149,7 +218,7 @@ const CreditsPage: React.FC = () => {
           <Money cents={totals.paid} className="text-2xl font-bold text-success" />
         </Tile>
         <Tile label="Overdue" loading={credits.isLoading} icon={AlertTriangle}>
-          <span className="text-2xl font-bold tabular-nums">{counts.overdue}</span>
+          <span className="text-2xl font-bold tabular-nums">{overdueOnScreen}</span>
         </Tile>
       </div>
       {!credits.isLoading && totals.count > 0 && (
@@ -159,123 +228,70 @@ const CreditsPage: React.FC = () => {
         </p>
       )}
 
-      <Card>
-        <CardHeader className="gap-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
-          <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+      <DataTable<CreditListRow>
+        rows={rows}
+        columns={columns}
+        getRowId={(c) => c.id}
+        loading={credits.isLoading}
+        error={credits.error}
+        onRetry={() => credits.refetch()}
+        caption="Credit accounts"
+        highlightId={focus}
+        rowClassName={(c) => (isOverdue(c) ? "bg-destructive/5" : undefined)}
+        search={{ value: search, onChange: (v) => url.set({ q: v, page: null }), placeholder: "Customer or product" }}
+        filtered={!!search}
+        onClearFilters={() => url.set({ q: null, page: null })}
+        toolbar={
+          <Tabs value={filter} onValueChange={(v) => url.set({ tab: v, page: null }, { tab: "open" })}>
             <TabsList className="flex-wrap">
-              <TabsTrigger value="open">Open ({counts.open})</TabsTrigger>
-              <TabsTrigger value="overdue">Overdue ({counts.overdue})</TabsTrigger>
-              <TabsTrigger value="paid">Paid ({counts.paid})</TabsTrigger>
-              <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
+              {FILTERS.map((f) => (
+                <TabsTrigger key={f.value} value={f.value}>
+                  {f.label} ({counts[f.value]})
+                </TabsTrigger>
+              ))}
             </TabsList>
           </Tabs>
-          <div className="relative w-full lg:w-72">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <Input
-              placeholder="Customer or product"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-              aria-label="Search credits"
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <CardTitle className="sr-only">Credit accounts</CardTitle>
-          {credits.isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : credits.isError ? (
-            <div className="py-8 text-center">
-              <p className="text-sm text-muted-foreground">Couldn't load credits.</p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={() => credits.refetch()}>
-                Try again
-              </Button>
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-10 text-center">
-              <HandCoins className="h-10 w-10 text-muted-foreground" aria-hidden />
-              <p className="text-sm text-muted-foreground">
-                {search
-                  ? `No credits match "${search}".`
-                  : filter === "overdue"
-                    ? "Nothing overdue. Nice."
-                    : filter === "open"
-                      ? "Nobody owes you anything right now."
-                      : "No credits yet. Sales made on credit or part payment appear here."}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>For</TableHead>
-                      <TableHead className="text-right">Owed</TableHead>
-                      <TableHead className="text-right">Paid</TableHead>
-                      <TableHead className="text-right">Balance</TableHead>
-                      <TableHead>Due</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>
-                        <span className="sr-only">Actions</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((c) => (
-                      <TableRow key={c.id} className={cn(isOverdue(c) && "bg-destructive/5")}>
-                        <TableCell className="font-medium">{c.customer_name}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {c.sale ? `${c.sale.quantity} × ${c.sale.product_name}` : "—"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Money value={c.amount_owed} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Money value={c.amount_paid} />
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          <Money cents={creditOutstanding(c)} />
-                        </TableCell>
-                        <TableCell className={cn("whitespace-nowrap", isOverdue(c) && "font-medium text-destructive")}>
-                          {format(parseDayKey(c.due_date), "d MMM yyyy")}
-                        </TableCell>
-                        <TableCell>{statusBadge(c)}</TableCell>
-                        <TableCell>{actions(c)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+        }
+        selectable={security.canBulkOperations}
+        bulkActions={(selected, clear) =>
+          selected.some((c) => c.status !== "paid") ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                payAll(selected.filter((c) => c.status !== "paid"));
+                clear();
+              }}
+            >
+              <CheckCircle2 className="mr-1.5 h-4 w-4" /> Mark paid
+            </Button>
+          ) : null
+        }
+        emptyState={
+          <EmptyState
+            icon={HandCoins}
+            title={filter === "overdue" ? "Nothing overdue" : filter === "open" ? "Nobody owes you anything" : "No credits yet"}
+            description="Sales made on credit or part payment appear here until they're paid."
+          />
+        }
+        mobileCard={(c) => (
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-3 pr-6">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{c.customer_name}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {c.sale ? `${c.sale.quantity} × ${c.sale.product_name} · ` : ""}due {format(parseDayKey(c.due_date), "d MMM")}
+                </p>
               </div>
-              <ul className="space-y-3 md:hidden">
-                {rows.map((c) => (
-                  <li key={c.id} className={cn("rounded-lg border p-3", isOverdue(c) && "border-destructive/40")}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{c.customer_name}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {c.sale ? `${c.sale.quantity} × ${c.sale.product_name} · ` : ""}due{" "}
-                          {format(parseDayKey(c.due_date), "d MMM")}
-                        </p>
-                      </div>
-                      <Money cents={creditOutstanding(c)} className="font-semibold" />
-                    </div>
-                    <div className="mt-2 flex items-center justify-between">
-                      {statusBadge(c)}
-                      {actions(c)}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </CardContent>
-      </Card>
+              <Money cents={creditOutstanding(c)} className="font-semibold" />
+            </div>
+            <div className="flex items-center justify-between">
+              {statusBadge(c)}
+              {actions(c)}
+            </div>
+          </div>
+        )}
+      />
 
       <RecordPaymentDialog credit={paying} onOpenChange={(open) => !open && setPaying(null)} />
       <EditCreditDialog

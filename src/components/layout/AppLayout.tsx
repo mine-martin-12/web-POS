@@ -8,6 +8,8 @@ import { usePrivacyMode } from "@/contexts/PrivacyModeContext";
 import { SHORTCUTS } from "@/lib/platform";
 import { EyeOff } from "lucide-react";
 import { useApprovalsRealtime } from "@/features/approvals/hooks";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
+import { useOverdueCheck } from "@/features/notifications/hooks";
 import { AppHeader } from "./AppHeader";
 import { AppSidebar } from "./AppSidebar";
 import { CommandPalette } from "./CommandPalette";
@@ -19,6 +21,7 @@ export function AppLayout() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const privacy = usePrivacyMode();
   useApprovalsRealtime();
+  useOverdueCheck();
 
   return (
     <SidebarProvider>
@@ -31,7 +34,12 @@ export function AppLayout() {
       <AppSidebar />
       <SidebarInset>
         <TrialBanner />
-        <AppHeader onOpenPalette={() => setPaletteOpen(true)} actions={<PrivacyToggle />} />
+        <AppHeader onOpenPalette={() => setPaletteOpen(true)} actions={
+            <>
+              <PrivacyToggle />
+              <NotificationBell />
+            </>
+          } />
         <div id="main-content" tabIndex={-1} className="flex-1 p-4 pb-24 outline-none md:p-6 md:pb-6">
           {/* Keyed on the path so every page fades in. */}
           <div key={pathname} className="animate-fade-in">

@@ -165,6 +165,8 @@ export type Database = {
           customer_name: string
           due_date: string
           id: string
+          overdue_notified_at: string | null
+          reminder_sent_at: string | null
           sale_id: string
           status: Database["public"]["Enums"]["credit_status"]
           updated_at: string
@@ -179,6 +181,8 @@ export type Database = {
           customer_name: string
           due_date: string
           id?: string
+          overdue_notified_at?: string | null
+          reminder_sent_at?: string | null
           sale_id: string
           status?: Database["public"]["Enums"]["credit_status"]
           updated_at?: string
@@ -193,6 +197,8 @@ export type Database = {
           customer_name?: string
           due_date?: string
           id?: string
+          overdue_notified_at?: string | null
+          reminder_sent_at?: string | null
           sale_id?: string
           status?: Database["public"]["Enums"]["credit_status"]
           updated_at?: string
@@ -265,6 +271,53 @@ export type Database = {
           },
         ]
       }
+      expenses: {
+        Row: {
+          amount: number
+          business_id: string
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          expense_date: string
+          id: string
+          payment_method: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          business_id?: string
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date: string
+          id?: string
+          payment_method?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          business_id?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          id?: string
+          payment_method?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitations: {
         Row: {
           accepted_at: string | null
@@ -314,6 +367,83 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "invitations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          change_requests: boolean
+          low_stock: boolean
+          overdue_credits: boolean
+          team: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          change_requests?: boolean
+          low_stock?: boolean
+          overdue_credits?: boolean
+          team?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          change_requests?: boolean
+          low_stock?: boolean
+          overdue_credits?: boolean
+          team?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          archived_at: string | null
+          body: string | null
+          business_id: string
+          created_at: string
+          id: string
+          kind: string
+          link_id: string | null
+          link_table: string | null
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          body?: string | null
+          business_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          link_id?: string | null
+          link_table?: string | null
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          body?: string | null
+          business_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          link_id?: string | null
+          link_table?: string | null
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
@@ -392,6 +522,7 @@ export type Database = {
           created_by: string | null
           description: string
           id: string
+          low_stock_notified_at: string | null
           name: string
           size: string | null
           stock_quantity: number
@@ -406,6 +537,7 @@ export type Database = {
           created_by?: string | null
           description: string
           id?: string
+          low_stock_notified_at?: string | null
           name: string
           size?: string | null
           stock_quantity?: number
@@ -420,6 +552,7 @@ export type Database = {
           created_by?: string | null
           description?: string
           id?: string
+          low_stock_notified_at?: string | null
           name?: string
           size?: string | null
           stock_quantity?: number
@@ -556,6 +689,107 @@ export type Database = {
           },
         ]
       }
+      sms_messages: {
+        Row: {
+          body: string
+          broadcast_id: string | null
+          business_id: string
+          created_at: string
+          customer_id: string | null
+          error: string | null
+          id: string
+          kind: string
+          phone: string
+          provider_message_id: string | null
+          sent_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          broadcast_id?: string | null
+          business_id: string
+          created_at?: string
+          customer_id?: string | null
+          error?: string | null
+          id?: string
+          kind?: string
+          phone: string
+          provider_message_id?: string | null
+          sent_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          broadcast_id?: string | null
+          business_id?: string
+          created_at?: string
+          customer_id?: string | null
+          error?: string | null
+          id?: string
+          kind?: string
+          phone?: string
+          provider_message_id?: string | null
+          sent_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_templates: {
+        Row: {
+          body: string
+          business_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_templates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           business_id: string
@@ -593,20 +827,7 @@ export type Database = {
       }
     }
     Views: {
-      customers_secure: {
-        Row: {
-          archived_at: string | null
-          business_id: string | null
-          created_at: string | null
-          created_by: string | null
-          id: string | null
-          name: string | null
-          notes: string | null
-          phone: string | null
-          updated_at: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       add_stock: {
@@ -628,6 +849,10 @@ export type Database = {
       create_customer: {
         Args: { _name: string; _phone?: string; _notes?: string; _force?: boolean }
         Returns: Json
+      }
+      customers_secure: {
+        Args: Record<PropertyKey, never>
+        Returns: { id: string; business_id: string; name: string; phone: string; notes: string; created_by: string; created_at: string; updated_at: string; archived_at: string }[]
       }
       get_current_user_business_id: {
         Args: Record<PropertyKey, never>
@@ -665,6 +890,10 @@ export type Database = {
         Args: { _raw: string; _default_country?: string }
         Returns: string
       }
+      notify_overdue_credits: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       record_credit_payment: {
         Args: { _credit_id: string; _amount: number; _payment_method?: string }
         Returns: Database["public"]["Tables"]["credits"]["Row"]
@@ -685,9 +914,17 @@ export type Database = {
         Args: { _day: string; _tz: string }
         Returns: string
       }
+      sales_month_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: { month: string; sales_count: number; billed: number; collected: number; outstanding: number; cost: number }[]
+      }
       search_customers: {
         Args: { _query?: string; _limit?: number }
-        Returns: Database["public"]["Views"]["customers_secure"]["Row"][]
+        Returns: { id: string; business_id: string; name: string; phone: string; notes: string; created_by: string; created_at: string; updated_at: string; archived_at: string }[]
+      }
+      sms_audience: {
+        Args: { _audience: string }
+        Returns: { customer_id: string; name: string }[]
       }
       submit_change: {
         Args: { _table: string; _record_id: string; _new_values: Json; _reason: string }
