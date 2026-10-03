@@ -139,7 +139,7 @@ interface Product {
 }
 
 const Sales: React.FC = () => {
-  const { profile } = useAuth();
+  const { profile, business } = useAuth();
   const { canDeleteRecords } = useSecurity();
   const { toast } = useToast();
   const [sales, setSales] = useState<Sale[]>([]);
@@ -493,7 +493,13 @@ const Sales: React.FC = () => {
       product_name: saleToprint.products?.name || "Unknown Product",
     };
 
-    root.render(<Receipt sale={saleWithProduct} />);
+    root.render(
+      <Receipt
+        sale={saleWithProduct}
+        businessInfo={{ name: business?.name ?? "Smart POS", address: business?.address, phone: business?.phone }}
+        currency={business?.currency ?? "KES"}
+      />,
+    );
 
     // Wait for render to complete
     setTimeout(() => {

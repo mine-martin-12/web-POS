@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatMoney } from '@/lib/currency';
 
 interface Sale {
   id: string;
@@ -18,23 +19,16 @@ interface Sale {
 
 interface ReceiptProps {
   sale: Sale;
-  businessInfo?: {
+  businessInfo: {
     name: string;
-    address?: string;
-    phone?: string;
+    address?: string | null;
+    phone?: string | null;
   };
+  currency: string;
 }
 
-export const Receipt: React.FC<ReceiptProps> = ({ 
-  sale, 
-  businessInfo = { name: "Ledger Bloom System" } 
-}) => {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
+export const Receipt: React.FC<ReceiptProps> = ({ sale, businessInfo, currency }) => {
+  const formatCurrency = (amount: number) => formatMoney(amount, currency);
 
   const receiptNumber = `RCP-${sale.id.slice(-8)}`;
   const saleDate = new Date(sale.created_at).toLocaleDateString();
