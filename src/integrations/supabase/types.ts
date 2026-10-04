@@ -146,6 +146,50 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "credit_payments_credit_id_fkey1"
+            columns: ["credit_id"]
+            isOneToOne: false
+            referencedRelation: "credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_payments_legacy: {
+        Row: {
+          amount: number
+          business_id: string
+          created_at: string | null
+          credit_id: string
+          id: string
+          notes: string | null
+          payment_date: string | null
+          payment_method: string | null
+          recorded_by: string | null
+        }
+        Insert: {
+          amount: number
+          business_id: string
+          created_at?: string | null
+          credit_id: string
+          id?: string
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          recorded_by?: string | null
+        }
+        Update: {
+          amount?: number
+          business_id?: string
+          created_at?: string | null
+          credit_id?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          recorded_by?: string | null
+        }
+        Relationships: [
+          {
             foreignKeyName: "credit_payments_credit_id_fkey"
             columns: ["credit_id"]
             isOneToOne: false
@@ -169,6 +213,7 @@ export type Database = {
           reminder_sent_at: string | null
           sale_id: string
           status: Database["public"]["Enums"]["credit_status"]
+          transaction_id: string | null
           updated_at: string
         }
         Insert: {
@@ -185,6 +230,7 @@ export type Database = {
           reminder_sent_at?: string | null
           sale_id: string
           status?: Database["public"]["Enums"]["credit_status"]
+          transaction_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -201,6 +247,7 @@ export type Database = {
           reminder_sent_at?: string | null
           sale_id?: string
           status?: Database["public"]["Enums"]["credit_status"]
+          transaction_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -223,6 +270,13 @@ export type Database = {
             columns: ["sale_id"]
             isOneToOne: false
             referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credits_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "sale_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -271,6 +325,45 @@ export type Database = {
           },
         ]
       }
+      customers_legacy: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          credit_limit: number | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          total_credit_used: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          credit_limit?: number | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          total_credit_used?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          credit_limit?: number | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          total_credit_used?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number
@@ -317,6 +410,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      expenses_legacy: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          business_id: string
+          category: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          expense_date: string
+          id: string
+          receipt_url: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          business_id: string
+          category: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          id?: string
+          receipt_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          business_id?: string
+          category?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          id?: string
+          receipt_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       invitations: {
         Row: {
@@ -451,6 +595,48 @@ export type Database = {
           },
         ]
       }
+      notifications_legacy: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          read_at: string | null
+          reference_id: string | null
+          reference_type: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          read_at?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          read_at?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pending_updates: {
         Row: {
           admin_note: string | null
@@ -523,7 +709,9 @@ export type Database = {
           description: string
           id: string
           low_stock_notified_at: string | null
+          low_stock_threshold: number | null
           name: string
+          reorder_quantity: number | null
           size: string | null
           stock_quantity: number
           total_buying_price: number | null
@@ -538,7 +726,9 @@ export type Database = {
           description: string
           id?: string
           low_stock_notified_at?: string | null
+          low_stock_threshold?: number | null
           name: string
+          reorder_quantity?: number | null
           size?: string | null
           stock_quantity?: number
           total_buying_price?: number | null
@@ -553,7 +743,9 @@ export type Database = {
           description?: string
           id?: string
           low_stock_notified_at?: string | null
+          low_stock_threshold?: number | null
           name?: string
+          reorder_quantity?: number | null
           size?: string | null
           stock_quantity?: number
           total_buying_price?: number | null
@@ -612,6 +804,122 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_items: {
+        Row: {
+          buying_price: number
+          created_at: string
+          id: string
+          product_id: string
+          product_name: string
+          quantity: number
+          total_price: number
+          transaction_id: string
+          unit_price: number
+        }
+        Insert: {
+          buying_price?: number
+          created_at?: string
+          id?: string
+          product_id: string
+          product_name: string
+          quantity: number
+          total_price: number
+          transaction_id: string
+          unit_price: number
+        }
+        Update: {
+          buying_price?: number
+          created_at?: string
+          id?: string
+          product_id?: string
+          product_name?: string
+          quantity?: number
+          total_price?: number
+          transaction_id?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "sale_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_transactions: {
+        Row: {
+          amount_paid: number
+          business_id: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string | null
+          id: string
+          notes: string | null
+          payment_method: string
+          payment_status: string
+          receipt_number: string
+          status: string
+          subtotal: number
+          total_amount: number
+          transaction_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          payment_status?: string
+          receipt_number: string
+          status?: string
+          subtotal?: number
+          total_amount?: number
+          transaction_date?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          payment_status?: string
+          receipt_number?: string
+          status?: string
+          subtotal?: number
+          total_amount?: number
+          transaction_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers_legacy"
             referencedColumns: ["id"]
           },
         ]
@@ -790,6 +1098,57 @@ export type Database = {
           },
         ]
       }
+      update_requests: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          current_data: Json
+          entity_id: string
+          entity_type: string
+          id: string
+          requested_by: string
+          requested_data: Json
+          review_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          update_reason: string
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          current_data: Json
+          entity_id: string
+          entity_type: string
+          id?: string
+          requested_by: string
+          requested_data: Json
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          update_reason: string
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          current_data?: Json
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          requested_by?: string
+          requested_data?: Json
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          update_reason?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           business_id: string
@@ -824,6 +1183,33 @@ export type Database = {
             referencedColumns: ["user_id", "business_id"]
           },
         ]
+      }
+      user_roles_legacy: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -869,6 +1255,10 @@ export type Database = {
       get_user_business: {
         Args: { _user_id: string }
         Returns: string
+      }
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
       }
       has_role: {
         Args: { _user_id: string; _role: Database["public"]["Enums"]["app_role"] }

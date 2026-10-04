@@ -8,9 +8,13 @@
 -- =====================================================================================
 
 -- Credit amounts were unconstrained numeric; money is always 2 decimal places.
+DROP TRIGGER IF EXISTS update_sale_transaction_status_trigger ON public.credits;
+
 ALTER TABLE public.credits
   ALTER COLUMN amount_owed TYPE numeric(12,2),
   ALTER COLUMN amount_paid TYPE numeric(12,2);
+
+
 
 -- Products are inserted directly by clients: default the tenant from the session so the
 -- client never has to send (and can't choose) a business_id.

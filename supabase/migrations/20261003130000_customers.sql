@@ -100,7 +100,36 @@ CREATE TRIGGER customers_normalize
   FOR EACH ROW EXECUTE FUNCTION public.customers_normalize();
 
 ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL;
-ALTER TABLE public.credits ADD COLUMN IF NOT EXISTS customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL;
+
+ALTER TABLE public.credits ADD COLUMN IF NOT EXISTS customer_id uuid;
+
+-- Bring legacy customers across with their original ids so existing credit links survive.
+-- email, credit_limit and total_credit_used stay in customers_legacy.
+INSERT INTO public.customers (id, business_id, name, phone, notes, created_at, updated_at)
+SELECT
+  l.id,
+  l.business_id,
+  COALESCE(NULLIF(btrim(l.name), ''), 'Customer'),
+  CASE WHEN row_number() OVER (
+         PARTITION BY l.business_id, public.normalize_phone(l.phone)
+         ORDER BY l.created_at, l.id) = 1
+       THEN public.normalize_phone(l.phone) END,
+  NULLIF(btrim(l.notes), ''),
+  COALESCE(l.created_at, now()),
+  COALESCE(l.updated_at, now())
+FROM public.customers_legacy l
+WHERE EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = l.business_id)
+ON CONFLICT (id) DO NOTHING;
+
+-- Any credit still pointing at a customer that didn't come across gets relinked by name below.
+UPDATE public.credits c SET customer_id = NULL
+WHERE c.customer_id IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM public.customers cu WHERE cu.id = c.customer_id);
+
+ALTER TABLE public.credits DROP CONSTRAINT IF EXISTS credits_customer_id_fkey;
+ALTER TABLE public.credits
+  ADD CONSTRAINT credits_customer_id_fkey
+  FOREIGN KEY (customer_id) REFERENCES public.customers(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_sales_customer_id ON public.sales (customer_id);
 CREATE INDEX IF NOT EXISTS idx_credits_customer_id ON public.credits (customer_id);
 
@@ -112,6 +141,11 @@ SELECT DISTINCT ON (c.business_id, lower(btrim(c.customer_name)))
   c.business_id, btrim(c.customer_name), c.created_at, c.created_by
 FROM public.credits c
 WHERE length(btrim(c.customer_name)) > 0
+  AND c.customer_id IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.customers cu
+    WHERE cu.business_id = c.business_id
+      AND lower(cu.name) = lower(btrim(c.customer_name)))
 ORDER BY c.business_id, lower(btrim(c.customer_name)), c.created_at;
 
 UPDATE public.credits c SET customer_id = cu.id
