@@ -26,7 +26,8 @@ export interface OpenedDatabase {
 
 /** Open (or create) the demo database. `dataDir` like "idb://smartpos-demo-x"; omit for memory. */
 export async function openDatabase(dataDir?: string): Promise<OpenedDatabase> {
-  const db = new PGlite(dataDir, { parsers: POSTGREST_PARSERS });
+  // One options object: PGlite ignores the second argument when the first isn't a string.
+  const db = new PGlite({ dataDir, parsers: POSTGREST_PARSERS });
   await db.waitReady;
   // Timestamps come back in UTC, like PostgREST's.
   await db.exec("SET TIME ZONE 'UTC'");

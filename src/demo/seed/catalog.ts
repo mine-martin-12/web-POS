@@ -1,0 +1,94 @@
+/**
+ * The demo shop's catalogue: a small Kenyan general shop ("duka"). Products have no stored
+ * selling price in Smart POS (it's entered on each sale), so `sell` is the price the seed
+ * charges; `weight` is how often it sells and `restock` how many units a delivery brings.
+ */
+export interface CatalogItem {
+  name: string;
+  size: string;
+  buy: number;
+  sell: number;
+  weight: number;
+  restock: number;
+  /** Bought several at a time (e.g. sodas), or in bulk by shops and schools. */
+  multi?: boolean;
+  /** Left to run low near the end (the demo's low-stock cases). */
+  runsLow?: boolean;
+  /** Sold early on, then archived (the demo's archived-product cases). */
+  archived?: boolean;
+}
+
+export const CATALOG: CatalogItem[] = [
+  { name: "Unga wa Ugali (Maize Flour)", size: "2kg", buy: 165, sell: 190, weight: 10, restock: 60 },
+  { name: "Unga wa Ugali (Maize Flour)", size: "24kg bale", buy: 1900, sell: 2150, weight: 2, restock: 10 },
+  { name: "Wheat Flour", size: "2kg", buy: 175, sell: 200, weight: 5, restock: 40 },
+  { name: "Sugar", size: "1kg", buy: 150, sell: 175, weight: 9, restock: 60, multi: true },
+  { name: "Sugar", size: "50kg bag", buy: 6600, sell: 7300, weight: 1, restock: 4 },
+  { name: "Rice (Pishori)", size: "2kg", buy: 330, sell: 380, weight: 5, restock: 30 },
+  { name: "Cooking Oil", size: "1L", buy: 290, sell: 330, weight: 6, restock: 36 },
+  { name: "Cooking Oil", size: "5L", buy: 1350, sell: 1520, weight: 2, restock: 12 },
+  { name: "Cooking Fat", size: "1kg", buy: 330, sell: 380, weight: 3, restock: 24, runsLow: true },
+  { name: "Tea Leaves", size: "500g", buy: 230, sell: 270, weight: 4, restock: 30 },
+  { name: "Drinking Chocolate", size: "200g", buy: 210, sell: 250, weight: 1, restock: 12, archived: true },
+  { name: "Milk (Long Life)", size: "500ml", buy: 60, sell: 75, weight: 8, restock: 72, multi: true },
+  { name: "Bread", size: "400g", buy: 58, sell: 70, weight: 8, restock: 40, multi: true },
+  { name: "Eggs", size: "Tray of 30", buy: 400, sell: 480, weight: 3, restock: 15 },
+  { name: "Salt", size: "1kg", buy: 38, sell: 50, weight: 3, restock: 40 },
+  { name: "Royco Mchuzi Mix", size: "200g", buy: 95, sell: 120, weight: 3, restock: 30 },
+  { name: "Tomato Paste", size: "70g", buy: 30, sell: 40, weight: 3, restock: 50, multi: true },
+  { name: "Spaghetti", size: "400g", buy: 95, sell: 120, weight: 2, restock: 30 },
+  { name: "Beans (Rosecoco)", size: "1kg", buy: 160, sell: 190, weight: 3, restock: 25 },
+  { name: "Green Grams (Ndengu)", size: "1kg", buy: 170, sell: 200, weight: 2, restock: 20, runsLow: true },
+  { name: "Soda", size: "500ml", buy: 50, sell: 70, weight: 7, restock: 96, multi: true },
+  { name: "Soda Crate", size: "24 × 300ml", buy: 820, sell: 960, weight: 1, restock: 8 },
+  { name: "Mineral Water", size: "1L", buy: 55, sell: 80, weight: 4, restock: 48, multi: true },
+  { name: "Juice", size: "1L", buy: 150, sell: 190, weight: 2, restock: 24 },
+  { name: "Bar Soap", size: "800g", buy: 135, sell: 160, weight: 4, restock: 40 },
+  { name: "Washing Powder", size: "1kg", buy: 250, sell: 290, weight: 3, restock: 24 },
+  { name: "Toothpaste", size: "100ml", buy: 120, sell: 150, weight: 2, restock: 24 },
+  { name: "Bathing Soap", size: "175g", buy: 85, sell: 110, weight: 3, restock: 36 },
+  { name: "Petroleum Jelly", size: "250ml", buy: 140, sell: 170, weight: 2, restock: 20, runsLow: true },
+  { name: "Tissue Paper", size: "Pack of 10", buy: 380, sell: 450, weight: 2, restock: 15 },
+  { name: "Sanitary Pads", size: "Pack of 8", buy: 85, sell: 110, weight: 2, restock: 30 },
+  { name: "Diapers", size: "Pack of 40", buy: 1050, sell: 1250, weight: 1, restock: 8 },
+  { name: "Paraffin", size: "1L", buy: 150, sell: 175, weight: 3, restock: 40 },
+  { name: "Cooking Gas Refill", size: "6kg", buy: 1050, sell: 1200, weight: 2, restock: 10, runsLow: true },
+  { name: "Matches", size: "Pack of 10", buy: 35, sell: 50, weight: 2, restock: 30 },
+  { name: "Candles", size: "Pack of 6", buy: 70, sell: 90, weight: 1, restock: 20, archived: true },
+  { name: "Exercise Books", size: "Pack of 10 (96pg)", buy: 300, sell: 360, weight: 2, restock: 20, multi: true },
+  { name: "Airtime Voucher", size: "KES 100", buy: 95, sell: 100, weight: 5, restock: 100, multi: true },
+  { name: "Mosquito Coil", size: "Pack of 10", buy: 85, sell: 110, weight: 1, restock: 20 },
+  { name: "Biscuits", size: "Pack of 12", buy: 220, sell: 260, weight: 2, restock: 20 },
+];
+
+export const MEMBERS = {
+  admin: { email: "amina@demoshop.example", first_name: "Amina", last_name: "Wanjiku" },
+  staff: { email: "brian@demoshop.example", first_name: "Brian", last_name: "Otieno" },
+  otherStaff: { email: "grace@demoshop.example", first_name: "Grace", last_name: "Muthoni" },
+  invited: { email: "peter@demoshop.example", first_name: "Peter", last_name: "Kamau" },
+} as const;
+
+/** Fictional customers. Numbers are +254 700 000 1xx: made up, and the demo never sends SMS. */
+export const CUSTOMER_NAMES = [
+  "Mama Njeri", "John Kamau", "Faith Achieng", "Peter Mwangi", "Mary Wambui", "Joseph Kiprop",
+  "Grace Atieno", "Daniel Mutua", "Esther Nyambura", "Samuel Ochieng", "Lucy Wanjiru", "David Kiptoo",
+  "Ann Mumbi", "Kevin Odhiambo", "Ruth Chebet", "Brian Kariuki", "Catherine Akinyi", "Moses Kibet",
+  "Jane Muthoni", "Patrick Onyango", "Sarah Jeptoo", "George Waweru", "Mercy Adhiambo", "Paul Njoroge",
+  "Beatrice Kemunto", "Hassan Abdi", "Halima Mohamed", "St. Mary's Primary School", "Kibanda Hotel", "Jua Kali Welders",
+];
+
+export const SMS_TEMPLATES = [
+  {
+    name: "Payment reminder",
+    body: "Hi {customer_name}, a friendly reminder that {amount_due} is due on {due_date}. Thank you for shopping at {business_name}.",
+  },
+  {
+    name: "Overdue notice",
+    body: "Hi {customer_name}, your balance of {amount_due} at {business_name} is overdue. Please pay via M-Pesa or in store. Asante!",
+  },
+  { name: "Thank you", body: "Asante {customer_name}! Thank you for shopping at {business_name}. Karibu tena." },
+  {
+    name: "New stock",
+    body: "Hi {customer_name}, fresh stock has arrived at {business_name}: unga, sugar, cooking oil and more. Karibu!",
+  },
+];

@@ -45,6 +45,17 @@ beforeAll(async () => {
   [{ id: productId }] = await demoApi.products.fetchProducts();
 }, 120_000);
 
+describe("demo engine: PostgREST-shaped results", () => {
+  it("returns numbers for numeric columns and ISO strings for timestamps and dates", async () => {
+    asAdmin();
+    const [product] = await demoApi.products.fetchProducts();
+    expect(product.created_at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?\+00:00$/);
+    expect(product.buying_price).toBe(150);
+    const [row] = await rows<{ d: unknown; n: unknown }>(demoDb(), "SELECT current_date AS d, 1.5::numeric AS n");
+    expect(row).toEqual({ d: expect.stringMatching(/^\d{4}-\d\d-\d\d$/), n: 1.5 });
+  });
+});
+
 describe("demo engine: main flows", () => {
   it("records a cash sale and takes it off stock", async () => {
     asAdmin();
