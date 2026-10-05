@@ -1,57 +1,22 @@
-import { supabase } from "@/integrations/supabase/client";
-import type { Tables } from "@/integrations/supabase/types";
-import { fetchAll } from "@/lib/fetchAll";
+// Backend calls for expenses. The Supabase implementation is in api.supabase.ts; in demo
+// mode the same calls are answered by the in-browser demo database (src/demo). Constants,
+// types and pure helpers are re-exported unchanged.
+import { routed } from "@/data/routed";
+import * as remote from "./api.supabase";
 
-export type Expense = Tables<"expenses">;
+export * from "./api.supabase";
 
-export const EXPENSE_CATEGORIES = [
-  "Rent",
-  "Salaries & wages",
-  "Utilities",
-  "Transport",
-  "Supplies",
-  "Repairs",
-  "Marketing",
-  "Licences & fees",
-  "Other",
-] as const;
+const backend = {
+  fetchExpenses: remote.fetchExpenses,
+  createExpense: remote.createExpense,
+  updateExpense: remote.updateExpense,
+  deleteExpense: remote.deleteExpense,
+};
+export type ExpensesApi = typeof backend;
 
-export interface ExpenseInput {
-  category: string;
-  description: string;
-  amount: number;
-  expense_date: string;
-  payment_method: "cash" | "mpesa" | "bank_cheque";
-}
-
-/** Expenses dated fromKey..toKey inclusive (admins only; RLS returns nothing to staff). */
-export async function fetchExpenses(fromKey: string, toKey: string): Promise<Expense[]> {
-  return fetchAll<Expense>(() =>
-    supabase
-      .from("expenses")
-      .select("*")
-      .gte("expense_date", fromKey)
-      .lte("expense_date", toKey)
-      .order("expense_date", { ascending: false })
-      .order("id", { ascending: false }),
-  );
-}
-
-export async function createExpense(input: ExpenseInput): Promise<void> {
-  const { error } = await supabase.from("expenses").insert({ ...input, description: input.description || null });
-  if (error) throw error;
-}
-
-export async function updateExpense(id: string, input: ExpenseInput): Promise<void> {
-  const { error } = await supabase
-    .from("expenses")
-    .update({ ...input, description: input.description || null })
-    .eq("id", id);
-  if (error) throw error;
-}
-
-export async function deleteExpense(id: string): Promise<void> {
-  const { data, error } = await supabase.from("expenses").delete().eq("id", id).select("id");
-  if (error) throw error;
-  if (!data?.length) throw new Error("This expense can't be deleted");
-}
+export const {
+  fetchExpenses,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+} = routed("expenses", backend);

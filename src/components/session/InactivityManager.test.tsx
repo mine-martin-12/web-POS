@@ -5,8 +5,9 @@ import { SESSION_CONFIG } from "@/config/session";
 import { InactivityManager } from "./InactivityManager";
 
 const signOut = vi.fn(async () => {});
+const user: { id: string; last_sign_in_at?: string } = { id: "u1" };
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ user: { id: "u1" }, signOut }),
+  useAuth: () => ({ user, signOut }),
 }));
 vi.mock("sonner", () => ({ toast: { info: vi.fn() } }));
 
@@ -18,6 +19,7 @@ describe("InactivityManager", () => {
     vi.setSystemTime(new Date("2026-10-03T08:00:00Z"));
     localStorage.clear();
     signOut.mockClear();
+    delete user.last_sign_in_at;
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -66,5 +68,15 @@ describe("InactivityManager", () => {
     render(<InactivityManager />);
     await act(async () => {});
     expect(signOut).toHaveBeenCalled();
+  });
+
+  it("ignores a timestamp left by an earlier session after a new sign-in", async () => {
+    // Last active yesterday (that tab was closed without signing out); signed in just now.
+    localStorage.setItem(SESSION_CONFIG.storageKey, String(Date.now() - 24 * 60 * MIN));
+    user.last_sign_in_at = new Date(Date.now() - 5000).toISOString();
+    render(<InactivityManager />);
+    await act(async () => {});
+    expect(signOut).not.toHaveBeenCalled();
+    expect(Number(localStorage.getItem(SESSION_CONFIG.storageKey))).toBe(Date.now());
   });
 });
