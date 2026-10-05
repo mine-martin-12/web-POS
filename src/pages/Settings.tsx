@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { Building2, Lock, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSecurity } from "@/hooks/useSecurity";
-import { supabase } from "@/integrations/supabase/client";
+import { changePassword, updateBusinessDetails, updateMyName } from "@/features/account/api";
+import { simulatedNote } from "@/data/mode";
 import { getErrorMessage } from "@/lib/errors";
 import { ROLE_LABELS } from "@/lib/permissions";
 import { emailField, requiredText, strongPassword } from "@/lib/validation";
@@ -89,11 +90,7 @@ const Settings: React.FC = () => {
     if (!profile) return;
     setSaving("profile");
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ first_name: data.first_name, last_name: data.last_name })
-        .eq("user_id", profile.user_id);
-      if (error) throw error;
+      await updateMyName(profile.user_id, { first_name: data.first_name, last_name: data.last_name });
       toast.success("Profile updated");
       await refresh();
     } catch (error) {
@@ -106,15 +103,7 @@ const Settings: React.FC = () => {
   const onUpdateBusiness = async (data: BusinessFormData) => {
     setSaving("business");
     try {
-      const { error } = await supabase.rpc("update_business_details", {
-        _name: data.name,
-        _phone: data.phone ?? "",
-        _email: data.email ?? "",
-        _address: data.address ?? "",
-        _currency: data.currency.toUpperCase(),
-        _timezone: data.timezone,
-      });
-      if (error) throw error;
+      await updateBusinessDetails(data);
       toast.success("Business details updated");
       await refresh();
     } catch (error) {
@@ -128,19 +117,18 @@ const Settings: React.FC = () => {
     if (!profile) return;
     setSaving("password");
     try {
-      // Re-authenticate so a borrowed, unlocked session can't change the password.
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      // Re-authenticates first, so a borrowed, unlocked session can't change the password.
+      const result = await changePassword({
         email: profile.email,
-        password: data.current_password,
+        currentPassword: data.current_password,
+        newPassword: data.new_password,
       });
-      if (signInError) {
+      if (result === "wrong_current_password") {
         passwordForm.setError("current_password", { message: "Current password is incorrect" });
         toast.error("Current password is incorrect");
         return;
       }
-      const { error } = await supabase.auth.updateUser({ password: data.new_password });
-      if (error) throw error;
-      toast.success("Password updated");
+      toast.success(simulatedNote("Password updated"));
       passwordForm.reset();
     } catch (error) {
       toast.error("Couldn't update your password", { description: getErrorMessage(error) });

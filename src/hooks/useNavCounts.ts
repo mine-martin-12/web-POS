@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSecurity } from "@/hooks/useSecurity";
 import { todayKey } from "@/lib/dates";
 import { queryKeys } from "@/lib/queryKeys";
 import type { NavBadge } from "@/config/routes";
+import { countApprovalsBadge } from "@/features/approvals/api";
+import { countOverdueCredits } from "@/features/credits/api";
 
 /** Counts shown as badges in the sidebar. Cheap head-only count queries; the approvals
  *  count is kept live by useApprovalsRealtime. */
@@ -16,15 +17,7 @@ export function useNavCounts(): Partial<Record<NavBadge, number>> {
     queryKey: queryKeys.nav.overdueCredits(),
     enabled: !!business,
     staleTime: 60_000,
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("credits")
-        .select("id", { count: "exact", head: true })
-        .neq("status", "paid")
-        .lt("due_date", todayKey(business?.timezone));
-      if (error) throw error;
-      return count ?? 0;
-    },
+    queryFn: () => countOverdueCredits(todayKey(business?.timezone)),
   });
 
   // Admins: requests waiting for review. Staff: their requests sent back to them.
@@ -32,15 +25,7 @@ export function useNavCounts(): Partial<Record<NavBadge, number>> {
     queryKey: queryKeys.nav.approvals(canReviewChanges ? "reviewer" : "requester"),
     enabled: !!business && !!user && !isLoadingRole,
     staleTime: 60_000,
-    queryFn: async () => {
-      let query = supabase.from("pending_updates").select("id", { count: "exact", head: true });
-      query = canReviewChanges
-        ? query.eq("status", "pending")
-        : query.eq("status", "sent_back_for_review").eq("requested_by", user!.id);
-      const { count, error } = await query;
-      if (error) throw error;
-      return count ?? 0;
-    },
+    queryFn: () => countApprovalsBadge({ reviewer: canReviewChanges, userId: user!.id }),
   });
 
   return { overdueCredits: overdue.data, approvals: approvals.data };

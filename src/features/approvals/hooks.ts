@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { subscribeToChanges } from "@/lib/realtime";
 import { useAuth } from "@/contexts/AuthContext";
 import { queryKeys } from "@/lib/queryKeys";
 import { archiveChange, fetchChangeRequests, fetchMemberNames, resubmitChange, reviewChange, submitChange } from "./api";
@@ -40,19 +40,12 @@ export function useApprovalsRealtime() {
   const businessId = business?.id;
   useEffect(() => {
     if (!businessId) return;
-    const channel = supabase
-      .channel(`pending_updates:${businessId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "pending_updates", filter: `business_id=eq.${businessId}` },
-        () => {
-          void queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all });
-          void queryClient.invalidateQueries({ queryKey: queryKeys.nav.all });
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
+    return subscribeToChanges(
+      { channel: `pending_updates:${businessId}`, table: "pending_updates", filter: `business_id=eq.${businessId}` },
+      () => {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.nav.all });
+      },
+    );
   }, [businessId, queryClient]);
 }
