@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Enums, Tables } from "@/integrations/supabase/types";
 import { getErrorMessage } from "@/lib/errors";
+import { clearStoredActivity, writeStoredActivity } from "@/lib/inactivity";
 
 export type AppRole = Enums<"app_role">;
 export type Profile = Tables<"profiles">;
@@ -65,11 +66,12 @@ const PROFILE_COLUMNS =
   "id, user_id, business_id, email, first_name, last_name, is_active, deactivated_at, created_at, updated_at";
 
 /** Profile, business and role in one round trip. */
-async function loadAccount(userId: string): Promise<LoadedAccount | null> {
+async function loadAccount(userId: string, signal: AbortSignal): Promise<LoadedAccount | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select(`${PROFILE_COLUMNS}, businesses(*), user_roles(role)`)
     .eq("user_id", userId)
+    .abortSignal(signal)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
@@ -103,20 +105,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const lastEvent = useRef<{ key: string; at: number } | null>(null);
   const loadedFor = useRef<string | null>(null);
+  const inFlight = useRef<AbortController | null>(null);
+
+  /** Stop any account load in progress (sign-out, or a newer sign-in). */
+  const cancelLoad = useCallback(() => {
+    inFlight.current?.abort();
+    inFlight.current = null;
+    setIsLoadingRole(false);
+  }, []);
 
   const applyUser = useCallback(async (user: User | null, force = false) => {
     if (!user) {
+      cancelLoad();
       loadedFor.current = null;
       setAccount(null);
       setIsLoadingRole(false);
       return;
     }
     if (!force && loadedFor.current === user.id) return;
+    cancelLoad();
+    const controller = new AbortController();
+    inFlight.current = controller;
     loadedFor.current = user.id;
+    // A load cancelled by sign-out or superseded by another one ends quietly.
+    const stale = () => controller.signal.aborted || loadedFor.current !== user.id;
     setIsLoadingRole(true);
     try {
-      const loaded = await loadAccount(user.id);
-      if (loadedFor.current !== user.id) return; // a newer sign-in/out won the race
+      // Only query with a live session for this user: without one the request would go
+      // out as anon, which has no access to profiles.
+      const {
+        data: { session: current },
+      } = await supabase.auth.getSession();
+      if (stale()) return;
+      if (current?.user.id !== user.id) {
+        loadedFor.current = null;
+        setAccount(null);
+        return;
+      }
+      const loaded = await loadAccount(user.id, controller.signal);
+      if (stale()) return;
       if (!loaded || !loaded.profile.is_active) {
         loadedFor.current = null;
         setAccount(null);
@@ -130,12 +157,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setAccount(loaded);
     } catch (error) {
+      if (stale()) return;
       loadedFor.current = null;
       toast.error("Couldn't load your account", { description: getErrorMessage(error) });
     } finally {
-      setIsLoadingRole(false);
+      if (inFlight.current === controller) {
+        inFlight.current = null;
+        setIsLoadingRole(false);
+      }
     }
-  }, []);
+  }, [cancelLoad]);
 
   useEffect(() => {
     // Subscribe BEFORE reading the current session so no event is missed in between.
@@ -152,6 +183,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (event === "PASSWORD_RECOVERY") setIsRecoveryMode(true);
       // Recovery ends once the new password is saved (or the user signs out).
       if (event === "SIGNED_OUT" || event === "USER_UPDATED") setIsRecoveryMode(false);
+      if (event === "SIGNED_OUT") {
+        // Covers sign-outs from other tabs and expired sessions too.
+        clearStoredActivity();
+        cancelLoad();
+      }
       setSession(next);
       // Never await Supabase calls inside this callback (it holds the auth lock).
       setTimeout(() => {
@@ -167,10 +203,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       .finally(() => setIsLoading(false));
 
-    return () => subscription.unsubscribe();
-  }, [applyUser]);
+    return () => {
+      subscription.unsubscribe();
+      cancelLoad();
+    };
+  }, [applyUser, cancelLoad]);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    // A fresh sign-in starts a fresh idle timer, whatever an earlier session left behind.
+    writeStoredActivity(Date.now());
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     if (error) return { error: friendlyAuthError(error.message) };
     return { error: null };
@@ -203,8 +244,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = useCallback(async (options?: { silent?: boolean }) => {
-    const { error } = await supabase.auth.signOut();
+    cancelLoad();
     loadedFor.current = null;
+    clearStoredActivity();
+    const { error } = await supabase.auth.signOut();
     setAccount(null);
     setSession(null);
     if (error) {
@@ -212,7 +255,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else if (!options?.silent) {
       toast.success("Signed out");
     }
-  }, []);
+  }, [cancelLoad]);
 
   const refresh = useCallback(async () => {
     await applyUser(session?.user ?? null, true);

@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SESSION_CONFIG } from "@/config/session";
-import { formatCountdown, inactivityState, readStoredActivity, writeStoredActivity } from "@/lib/inactivity";
+import { formatCountdown, inactivityState, readStoredActivity, sessionActivity, writeStoredActivity } from "@/lib/inactivity";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -49,10 +49,14 @@ export function InactivityManager() {
     }
   }, []);
 
-  // Start of a signed-in session: honour a stale timestamp from a previous visit.
+  // Start of a signed-in session: a reload after a long idle spell signs out, but a
+  // timestamp left over from before this sign-in is ignored.
+  const lastSignInAt = user?.last_sign_in_at ?? null;
+  const lastSignInRef = useRef(lastSignInAt);
+  lastSignInRef.current = lastSignInAt;
   useEffect(() => {
     if (!userId) return;
-    const stored = readStoredActivity();
+    const stored = sessionActivity(readStoredActivity(), lastSignInRef.current);
     if (stored !== null && inactivityState(Date.now(), stored).phase === "expired") {
       void expire();
       return;

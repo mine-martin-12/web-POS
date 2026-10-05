@@ -46,3 +46,23 @@ export function writeStoredActivity(time: number, storageKey = SESSION_CONFIG.st
     // Private mode / storage full: tabs just won't share activity.
   }
 }
+
+/** Forget the last activity (on sign-out), so it can't count against the next session. */
+export function clearStoredActivity(storageKey = SESSION_CONFIG.storageKey) {
+  try {
+    localStorage.removeItem(storageKey);
+  } catch {
+    // Storage unavailable: nothing was stored either.
+  }
+}
+
+/**
+ * The stored activity that belongs to the current session, or null. A timestamp from
+ * before the user's latest sign-in was left by an earlier session (e.g. one that ended
+ * without signing out) and must not sign the new session out.
+ */
+export function sessionActivity(stored: number | null, lastSignInAt: string | null | undefined): number | null {
+  if (stored === null) return null;
+  const signedInAt = lastSignInAt ? Date.parse(lastSignInAt) : NaN;
+  return Number.isFinite(signedInAt) && stored < signedInAt ? null : stored;
+}
