@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCountdown, inactivityState } from "./inactivity";
+import { formatCountdown, inactivityState, clearStoredActivity, sessionActivity, writeStoredActivity } from "./inactivity";
 
 const config = { warnAfterMs: 15 * 60_000, signOutAfterMs: 20 * 60_000 };
 const t0 = 1_700_000_000_000;
@@ -27,5 +27,26 @@ describe("formatCountdown", () => {
     expect(formatCountdown(5 * 60_000)).toBe("5:00");
     expect(formatCountdown(65_400)).toBe("1:06");
     expect(formatCountdown(0)).toBe("0:00");
+  });
+});
+
+describe("sessionActivity", () => {
+  const signIn = "2026-10-05T08:00:00Z";
+  const at = (iso: string) => Date.parse(iso);
+
+  it("keeps activity from the current session", () => {
+    expect(sessionActivity(at("2026-10-05T08:10:00Z"), signIn)).toBe(at("2026-10-05T08:10:00Z"));
+  });
+  it("drops activity from before the latest sign-in", () => {
+    expect(sessionActivity(at("2026-10-04T18:00:00Z"), signIn)).toBeNull();
+  });
+  it("keeps activity when the sign-in time is unknown", () => {
+    expect(sessionActivity(5, null)).toBe(5);
+    expect(sessionActivity(5, "not a date")).toBe(5);
+  });
+  it("clearStoredActivity forgets the timestamp", () => {
+    writeStoredActivity(123);
+    clearStoredActivity();
+    expect(localStorage.getItem("smartpos:last-activity")).toBeNull();
   });
 });
