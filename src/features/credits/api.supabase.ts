@@ -28,9 +28,28 @@ export interface CreditPayment {
 type One<T> = T | T[] | null;
 const first = <T,>(value: One<T>): T | null => (Array.isArray(value) ? (value[0] ?? null) : value);
 
-interface ApiCredit extends Omit<CreditListRow, "sale"> {
+/** A credit as PostgREST returns it, with its sale embedded. */
+export interface ApiCredit extends Omit<CreditListRow, "sale"> {
   sales: One<{ quantity: number; sale_date: string; products: One<{ name: string }> }>;
 }
+
+export function toCreditListRow({ sales, ...credit }: ApiCredit): CreditListRow {
+  const sale = first(sales);
+  return {
+    ...credit,
+    amount_owed: Number(credit.amount_owed),
+    amount_paid: Number(credit.amount_paid),
+    sale: sale
+      ? { product_name: first(sale.products)?.name ?? "Unknown product", quantity: sale.quantity, sale_date: sale.sale_date }
+      : null,
+  };
+}
+
+export const toCreditPayment = (p: { id: string; amount: number; payment_method: string; paid_at: string }): CreditPayment => ({
+  ...p,
+  amount: Number(p.amount),
+  payment_method: p.payment_method as PaidMethod,
+});
 
 export async function fetchCredits(): Promise<CreditListRow[]> {
   const rows = await fetchAll<ApiCredit>(() =>
@@ -42,17 +61,7 @@ export async function fetchCredits(): Promise<CreditListRow[]> {
       .order("due_date", { ascending: true })
       .order("id", { ascending: true }),
   );
-  return rows.map(({ sales, ...credit }) => {
-    const sale = first(sales);
-    return {
-      ...credit,
-      amount_owed: Number(credit.amount_owed),
-      amount_paid: Number(credit.amount_paid),
-      sale: sale
-        ? { product_name: first(sale.products)?.name ?? "Unknown product", quantity: sale.quantity, sale_date: sale.sale_date }
-        : null,
-    };
-  });
+  return rows.map(toCreditListRow);
 }
 
 export async function fetchCreditPayments(creditId: string): Promise<CreditPayment[]> {
@@ -62,7 +71,7 @@ export async function fetchCreditPayments(creditId: string): Promise<CreditPayme
     .eq("credit_id", creditId)
     .order("paid_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []).map((p) => ({ ...p, amount: Number(p.amount), payment_method: p.payment_method as PaidMethod }));
+  return (data ?? []).map(toCreditPayment);
 }
 
 /** Atomic server-side increment with a payment history row. */

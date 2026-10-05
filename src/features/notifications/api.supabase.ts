@@ -39,37 +39,51 @@ export async function archiveNotification(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** The record a notification points at, as far as the caller can see it (null: gone). */
+export type LinkedRecord = { sale_date?: string; name?: string; archived_at?: string | null } | null;
+
+/** The tables a notification can link to, and the columns needed to build its path. */
+export const LINK_LOOKUPS: Record<string, { key: string; columns: string }> = {
+  pending_updates: { key: "id", columns: "id" },
+  credits: { key: "id", columns: "id" },
+  sales: { key: "id", columns: "id, sale_date" },
+  products: { key: "id", columns: "id, name, archived_at" },
+  profiles: { key: "user_id", columns: "user_id" },
+};
+
+/** Where a notification leads, given the linked record (null when it no longer exists). */
+export function notificationPath(table: string, id: string, record: LinkedRecord, timeZone: string): string | null {
+  if (!record) return null;
+  switch (table) {
+    case "pending_updates":
+      return `/app/approvals?status=all&update=${id}`;
+    case "credits":
+      return `/app/credits?tab=all&focus=${id}`;
+    case "sales":
+      return `/app/sales?month=${dayKey(record.sale_date as string, timeZone).slice(0, 7)}&focus=${id}`;
+    case "products":
+      return record.archived_at ? null : `/app/products?q=${encodeURIComponent(record.name ?? "")}&focus=${id}`;
+    case "profiles":
+      return "/app/staff";
+    default:
+      return null;
+  }
+}
+
 /**
  * Where a notification leads, after checking the record still exists. Returns null when
  * it's gone (deleted, archived), so the caller can say so instead of opening a dead page.
  */
 export async function resolveTarget(n: Notification, timeZone: string): Promise<string | null> {
   if (!n.link_table || !n.link_id) return null;
-  const id = n.link_id;
-  switch (n.link_table) {
-    case "pending_updates": {
-      const { data } = await supabase.from("pending_updates").select("id").eq("id", id).maybeSingle();
-      return data ? `/app/approvals?status=all&update=${id}` : null;
-    }
-    case "credits": {
-      const { data } = await supabase.from("credits").select("id").eq("id", id).maybeSingle();
-      return data ? `/app/credits?tab=all&focus=${id}` : null;
-    }
-    case "sales": {
-      const { data } = await supabase.from("sales").select("id, sale_date").eq("id", id).maybeSingle();
-      return data ? `/app/sales?month=${dayKey(data.sale_date, timeZone).slice(0, 7)}&focus=${id}` : null;
-    }
-    case "products": {
-      const { data } = await supabase.from("products").select("id, name, archived_at").eq("id", id).maybeSingle();
-      return data && !data.archived_at ? `/app/products?q=${encodeURIComponent(data.name)}&focus=${id}` : null;
-    }
-    case "profiles": {
-      const { data } = await supabase.from("profiles").select("user_id").eq("user_id", id).maybeSingle();
-      return data ? "/app/staff" : null;
-    }
-    default:
-      return null;
-  }
+  const lookup = LINK_LOOKUPS[n.link_table];
+  if (!lookup) return null;
+  const { data } = await supabase
+    .from(n.link_table as "sales")
+    .select(lookup.columns)
+    .eq(lookup.key, n.link_id)
+    .maybeSingle();
+  return notificationPath(n.link_table, n.link_id, data as LinkedRecord, timeZone);
 }
 
 export async function fetchPreferences(userId: string): Promise<NotificationPreferences> {

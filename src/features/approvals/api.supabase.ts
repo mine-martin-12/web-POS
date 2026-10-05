@@ -15,7 +15,11 @@ export async function fetchChangeRequests(): Promise<ChangeRequest[]> {
 export async function fetchMemberNames(): Promise<Map<string, string>> {
   const { data, error } = await supabase.from("profiles").select("user_id, first_name, last_name");
   if (error) throw error;
-  return new Map((data ?? []).map((p) => [p.user_id, `${p.first_name} ${p.last_name}`.trim()]));
+  return toMemberNames(data ?? []);
+}
+
+export function toMemberNames(rows: Array<{ user_id: string; first_name: string; last_name: string }>) {
+  return new Map(rows.map((p) => [p.user_id, `${p.first_name} ${p.last_name}`.trim()]));
 }
 
 export async function submitChange(input: { table: ChangeTable; recordId: string; values: Record<string, unknown>; reason: string }) {

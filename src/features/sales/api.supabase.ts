@@ -7,7 +7,8 @@ export const SALE_SELECT =
   "id, product_id, quantity, selling_price, total_price, unit_cost, sale_date, payment_method, description, created_at, created_by, products(name), customers(id, name), credits(id, amount_owed, amount_paid, status, due_date, customer_name)";
 
 type One<T> = T | T[] | null;
-interface ApiSale {
+/** A sale as PostgREST returns it for SALE_SELECT. */
+export interface ApiSale {
   id: string;
   product_id: string;
   quantity: number;
@@ -118,14 +119,18 @@ export interface MonthSummary {
 export async function fetchMonthSummary(): Promise<MonthSummary[]> {
   const { data, error } = await supabase.rpc("sales_month_summary");
   if (error) throw error;
-  return (data ?? []).map((m) => ({
-    month: m.month,
+  return (data ?? []).map(toMonthSummary);
+}
+
+export function toMonthSummary(m: Record<keyof MonthSummary, string | number>): MonthSummary {
+  return {
+    month: String(m.month),
     sales_count: Number(m.sales_count),
     billed: Number(m.billed),
     collected: Number(m.collected),
     outstanding: Number(m.outstanding),
     cost: Number(m.cost),
-  }));
+  };
 }
 
 export async function deleteSale(id: string): Promise<void> {

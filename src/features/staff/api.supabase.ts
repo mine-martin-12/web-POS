@@ -9,10 +9,15 @@ export async function fetchMembers(): Promise<Member[]> {
     .select("user_id, email, first_name, last_name, is_active, deactivated_at, created_at, user_roles(role)")
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return data.map(({ user_roles, ...profile }) => {
-    const roleRow = Array.isArray(user_roles) ? user_roles[0] : user_roles;
-    return { ...profile, role: roleRow?.role ?? "user" };
-  });
+  return data.map(toMember);
+}
+
+type RoleEmbed = { role: AppRole } | Array<{ role: AppRole }> | null;
+
+/** A profile row with its embedded role → Member. */
+export function toMember({ user_roles, ...profile }: Omit<Member, "role"> & { user_roles: RoleEmbed }): Member {
+  const roleRow = Array.isArray(user_roles) ? user_roles[0] : user_roles;
+  return { ...profile, role: roleRow?.role ?? "user" };
 }
 
 /** Open (not accepted, not revoked) invitations, newest first. */
