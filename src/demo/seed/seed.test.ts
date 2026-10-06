@@ -83,6 +83,26 @@ describe("demo seed", () => {
     }
   });
 
+  it("looks like a small but profitable shop, with no artificial bulk sales", async () => {
+    const from = addDaysToKey(TODAY, -30);
+    const [{ profit }] = await rows<{ profit: number }>(
+      demoDb(),
+      `SELECT (SELECT sum(total_price - unit_cost * quantity) FROM public.sales WHERE (sale_date AT TIME ZONE $1)::date > $2)
+            - (SELECT sum(amount) FROM public.expenses WHERE expense_date > $2) AS profit`,
+      [DEMO_TIME_ZONE, from],
+    );
+    expect(profit).toBeGreaterThan(0);
+    // Sales are shop-sized: low-stock lines are sold down gradually, not in one dump.
+    expect(await count("public.sales WHERE quantity > 6")).toBe(0);
+    // Sales spread through opening hours instead of sharing one timestamp per day.
+    const [{ times }] = await rows<{ times: number }>(
+      demoDb(),
+      "SELECT count(DISTINCT sale_date)::int AS times FROM public.sales WHERE (sale_date AT TIME ZONE $1)::date = $2",
+      [DEMO_TIME_ZONE, addDaysToKey(TODAY, -1)],
+    );
+    expect(times).toBeGreaterThan(5);
+  });
+
   it("has staff change requests: pending, sent back and approved", async () => {
     expect(await count("public.pending_updates WHERE status = 'pending'")).toBeGreaterThanOrEqual(2);
     expect(await count("public.pending_updates WHERE status = 'sent_back_for_review'")).toBe(1);

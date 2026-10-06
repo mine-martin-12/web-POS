@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, subDays } from "date-fns";
 import { toast } from "sonner";
+import { simulatedNote } from "@/data/mode";
 import { AlertTriangle, CheckCircle2, Clock, MessageSquare, Megaphone, Pencil, RotateCcw, Send, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUrlState } from "@/hooks/useUrlState";
@@ -59,7 +60,7 @@ const MessagingPage: React.FC = () => {
 
   const report = (r: { sent: number; failed: number }) => {
     if (r.failed && !r.sent) toast.error("Messages failed", { description: "See History to retry." });
-    else toast.success(`${r.sent} sent${r.failed ? `, ${r.failed} failed` : ""}`, { description: r.failed ? "Retry the failed ones from History." : undefined });
+    else toast.success(simulatedNote(`${r.sent} sent${r.failed ? `, ${r.failed} failed` : ""}`), { description: r.failed ? "Retry the failed ones from History." : undefined });
   };
 
   const send = useMutation({

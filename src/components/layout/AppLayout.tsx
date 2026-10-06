@@ -4,6 +4,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { BrandedSpinner } from "@/components/common/BrandedSpinner";
 import { PrivacyToggle } from "@/components/session/PrivacyToggle";
 import { TrialBanner } from "@/components/session/TrialBanner";
+import { getDemoUi } from "@/data/demoUi";
 import { usePrivacyMode } from "@/contexts/PrivacyModeContext";
 import { SHORTCUTS } from "@/lib/platform";
 import { EyeOff } from "lucide-react";
@@ -20,6 +21,7 @@ export function AppLayout() {
   const { pathname } = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const privacy = usePrivacyMode();
+  const DemoBanner = getDemoUi()?.Banner;
   useApprovalsRealtime();
   useOverdueCheck();
 
@@ -33,6 +35,7 @@ export function AppLayout() {
       </a>
       <AppSidebar />
       <SidebarInset>
+        {DemoBanner && <DemoBanner />}
         <TrialBanner />
         <AppHeader onOpenPalette={() => setPaletteOpen(true)} actions={
             <>

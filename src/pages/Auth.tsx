@@ -4,7 +4,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
+import { FlaskConical } from "lucide-react";
+import { setDemoMode } from "@/data/mode";
 import { useAuth } from "@/contexts/AuthContext";
+import { APP_HOME } from "@/config/routes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
@@ -200,6 +203,30 @@ const Auth = () => {
               </Form>
             </TabsContent>
           </Tabs>
+
+          <div className="mt-6 space-y-3">
+            <div className="flex items-center gap-3 text-xs uppercase text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              or
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                // A full load, so the real auth listener and session timers never start.
+                setDemoMode(true);
+                window.location.assign(APP_HOME);
+              }}
+            >
+              <FlaskConical className="mr-2 h-4 w-4" aria-hidden />
+              Try the demo
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              No account needed. Explore a sample shop; nothing you do is saved.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

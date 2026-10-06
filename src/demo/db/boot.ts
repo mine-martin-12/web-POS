@@ -1,7 +1,6 @@
 /**
  * Open the demo database: the Supabase shim plus every real migration, applied in PGlite.
- * In the browser the data directory is an IndexedDB database for this tab, so a reload
- * keeps the visitor's changes; tests run in memory.
+ * It always runs in memory; src/demo/snapshots.ts keeps a copy across reloads.
  */
 import { PGlite } from "@electric-sql/pglite";
 import shimSql from "../../../supabase/tests/supabase-shim.sql?raw";
@@ -24,10 +23,15 @@ export interface OpenedDatabase {
   members: DemoMembers | null;
 }
 
-/** Open (or create) the demo database. `dataDir` like "idb://smartpos-demo-x"; omit for memory. */
-export async function openDatabase(dataDir?: string): Promise<OpenedDatabase> {
+export interface OpenOptions {
+  /** Start from a snapshot (see dumpDatabase) instead of an empty database. */
+  from?: Blob | File;
+}
+
+/** Open the demo database in memory: from a snapshot, or new with every migration applied. */
+export async function openDatabase(options: OpenOptions = {}): Promise<OpenedDatabase> {
   // One options object: PGlite ignores the second argument when the first isn't a string.
-  const db = new PGlite({ dataDir, parsers: POSTGREST_PARSERS });
+  const db = new PGlite({ loadDataDir: options.from, parsers: POSTGREST_PARSERS });
   await db.waitReady;
   // Timestamps come back in UTC, like PostgREST's.
   await db.exec("SET TIME ZONE 'UTC'");
@@ -53,4 +57,9 @@ export async function saveMembers(db: PGlite, members: DemoMembers): Promise<voi
     "INSERT INTO demo.meta (key, value) VALUES ('members', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
     [JSON.stringify(members)],
   );
+}
+
+/** The whole database as one compressed blob (a snapshot to reopen later). */
+export async function dumpDatabase(db: PGlite): Promise<Blob | File> {
+  return db.dumpDataDir("gzip");
 }

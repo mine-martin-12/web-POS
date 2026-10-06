@@ -13,6 +13,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { InactivityManager } from "@/components/session/InactivityManager";
 import { PrivacyModeProvider } from "@/contexts/PrivacyModeContext";
 import { LEGACY_REDIRECTS } from "@/config/routes";
+import { isDemoMode } from "@/data/mode";
 
 // Every page is code-split; the shell shows a branded spinner while one loads.
 const Index = lazy(() => import("./pages/Index"));
@@ -57,7 +58,8 @@ const App = () => (
         <PrivacyModeProvider>
           <TooltipProvider delayDuration={300}>
             <Sonner richColors closeButton />
-            <InactivityManager />
+            {/* No session to protect in the demo (and no real auth to sign out of). */}
+            {!isDemoMode() && <InactivityManager />}
             <BrowserRouter>
               <Suspense fallback={<BrandedSpinner fullScreen />}>
                 <Routes>
