@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
+import { simulatedNote } from "@/data/mode";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +57,7 @@ export function InviteMemberDialog({ open, onOpenChange }: InviteMemberDialogPro
           toast.warning("Email couldn't be sent", { description: "Share the invitation link below instead." });
         }
       } else {
-        toast.success("Invitation sent", { description: `${data.email} has 7 days to accept.` });
+        toast.success(simulatedNote("Invitation sent"), { description: `${data.email} has 7 days to accept.` });
         close(false);
       }
     } catch (error) {

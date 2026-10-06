@@ -129,7 +129,9 @@ Every rule above has a test in `supabase/tests/` (`security`, `customers`, `sale
 2. **Tests.** Add security tests in `supabase/tests/`, then run `npm test`.
 3. **Types.** Run `npm run db:types` to regenerate `src/integrations/supabase/types.ts`.
 4. **Code.** Put the feature in `src/features/<name>/`:
-   - `api.ts` (Supabase calls)
+   - `api.supabase.ts` (the Supabase calls; the only place that imports the client)
+   - `api.ts` (re-exports it and routes each backend function with `routed()`, so demo mode can answer it; add the slice to `DataApi` in `src/data/types.ts`)
+   - the demo version in `src/demo/api/<name>.ts` (the typecheck fails until it exists)
    - `hooks.ts` (React Query, using keys added to `queryKeys.ts`)
    - `components/` and `pages/`
 5. **Route.** Register the route:
@@ -139,6 +141,18 @@ Every rule above has a test in `supabase/tests/` (`security`, `customers`, `sale
    - Wrap the route in `<RoleBasedAccess capability=…>`.
    - Set `capability` on the registry entry.
 7. **Check.** Run `npm run check` (lint, typecheck, edge-function check, tests, build).
+
+## Demo mode
+
+**Try the demo** on the sign-in page (or a link with `?demo=1`) opens the whole app on sample data, with no Supabase involved at all.
+
+- **How it switches.** `src/data/mode.ts` keeps a per-tab flag in sessionStorage. `src/main.tsx` checks it before React renders and, in demo mode, loads `import("@/demo")` behind a loading screen. Every backend call goes through a feature's routed `api.ts`, which sends it to `src/demo/api/*` instead of `api.supabase.ts`. `AuthProvider` swaps in the demo's signed-in member, and the inactivity sign-out isn't mounted.
+- **Same rules as production.** The demo database is PGlite (Postgres in WebAssembly) running the real migrations. Each call runs as role `authenticated` with the acting member's id, so RLS, column grants, triggers, RPC checks and error messages are the production ones. The edge functions are stood in for by `src/demo/simulate/edge.ts` (same checks and response shapes; nothing is sent). Success toasts for simulated side effects use `simulatedNote()`.
+- **Never reaches Supabase.** The Supabase client is created lazily; in demo mode any use throws `DemoLeakError`. ESLint allows the client only in `*.supabase.ts` and the auth screens, and forbids static imports of `@/demo`.
+- **Sample data.** `src/demo/seed` builds "Demo Shop" through the same database functions the app uses. The history up to yesterday is built at build time (`npm run demo:snapshot`, part of `npm run build`) into `public/demo/history.tgz`. The browser loads it, shifts all dates so it ends yesterday (`shiftToToday`), and records today's trading live (`seedToday`). Without the file (dev server), the browser builds everything itself, which is slower.
+- **Session only.** The database lives in the tab's memory: changes last until reload, Reset or Exit. The role switcher (Admin / Staff) changes the acting member.
+- **Kept out of the normal app.** The demo, PGlite and the history snapshot load only in demo mode and aren't precached by the service worker. `npm run check` ends with `scripts/check-bundle.mjs`, which fails if any of it is loaded statically by the app.
+- **Tests.** `src/demo/no-network.test.tsx` renders the real app in demo mode across every page for both roles and fails on any Supabase client or network request. `engine.test.ts`, `seed/seed.test.ts` and `session.test.ts` cover the main flows, permissions, the sample data, and reset and exit.
 
 ## Do not touch
 

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { simulatedNote } from "@/data/mode";
 import { Link2, Mail, MoreHorizontal, Pencil, Plus, UserCheck, Users, UserX, XCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActionParam } from "@/hooks/useActionParam";
@@ -78,7 +79,7 @@ const StaffPage: React.FC = () => {
     try {
       const result = await resend.mutateAsync({ id: invitation.id, delivery });
       if (result.actionLink) setSharedLink(result.actionLink);
-      else toast.success("Invitation re-sent", { description: invitation.email });
+      else toast.success(simulatedNote("Invitation re-sent"), { description: invitation.email });
     } catch (error) {
       toast.error("Couldn't resend the invitation", { description: getErrorMessage(error) });
     }
