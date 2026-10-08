@@ -131,6 +131,8 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [cancelLoad]);
 
   useEffect(() => {
+    // Account loads scheduled from auth events; cancelled on unmount so none runs late.
+    const pending = new Set<ReturnType<typeof setTimeout>>();
     // Subscribe BEFORE reading the current session so no event is missed in between.
     const {
       data: { subscription },
@@ -152,9 +154,11 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
       setSession(next);
       // Never await Supabase calls inside this callback (it holds the auth lock).
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        pending.delete(timer);
         void applyUser(next?.user ?? null, event === "USER_UPDATED");
       }, 0);
+      pending.add(timer);
     });
 
     supabase.auth
@@ -167,6 +171,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     return () => {
       subscription.unsubscribe();
+      pending.forEach(clearTimeout);
       cancelLoad();
     };
   }, [applyUser, cancelLoad]);
