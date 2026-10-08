@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { PageHeader } from "@/components/common/PageHeader";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -141,12 +142,10 @@ const Settings: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-        <p className="text-muted-foreground">Manage your account and business preferences</p>
-      </div>
+      <PageHeader title="Settings" />
 
-      <div className="grid gap-6">
+      {/* Two cards per row on wide screens: fields stay a readable width, no empty band on the right. */}
+      <div className="grid items-start gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

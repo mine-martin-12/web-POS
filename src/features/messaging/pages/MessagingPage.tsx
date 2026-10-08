@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { PageHeader } from "@/components/common/PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, subDays } from "date-fns";
 import { toast } from "sonner";
@@ -127,10 +128,7 @@ const MessagingPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Messages</h1>
-        <p className="text-muted-foreground">Text your customers: reminders, thank-yous and offers.</p>
-      </div>
+      <PageHeader title="Messages" />
 
       <section aria-label={`Last ${STATS_DAYS} days`} className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Sent" value={stats.sent} icon={CheckCircle2} tone="text-success" loading={messages.isLoading} />

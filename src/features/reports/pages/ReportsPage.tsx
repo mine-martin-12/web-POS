@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { PageHeader } from "@/components/common/PageHeader";
 import { FileSpreadsheet, HandCoins, Maximize2, Percent, Receipt, TrendingUp, Wallet } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUrlState } from "@/hooks/useUrlState";
@@ -164,19 +165,20 @@ const ReportsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Reports</h1>
-          <p className="text-muted-foreground">How the business is doing, and where the money is.</p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <PeriodPicker period={period} today={today} onChange={(u) => url.set(u)} />
-          <Button variant="outline" onClick={() => setTaxOpen(true)} disabled={loading}>
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Tax export
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Reports"
+        actions={
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <PeriodPicker period={period} today={today} onChange={(u) => url.set(u)} />
+              <Button variant="outline" onClick={() => setTaxOpen(true)} disabled={loading}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Tax export
+              </Button>
+            </div>
+          </>
+        }
+      />
 
       <section aria-label="Key figures" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <InsightCard title="Revenue" help="Billed for sales in the period." icon={TrendingUp} value={<Money cents={now.billed} />} growth={pctChange(now.billed, before.billed)} comparisonLabel={comparison} loading={loading} />

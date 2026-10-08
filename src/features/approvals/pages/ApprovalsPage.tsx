@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/common/PageHeader";
 import { useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { ClipboardCheck } from "lucide-react";
@@ -104,14 +105,7 @@ const ApprovalsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">{canReviewChanges ? "Approvals" : "My change requests"}</h1>
-        <p className="text-muted-foreground">
-          {canReviewChanges
-            ? "Changes your staff asked for. Approving applies the change immediately."
-            : "Changes you asked for, and what your admin decided."}
-        </p>
-      </div>
+      <PageHeader title={canReviewChanges ? "Approvals" : "My change requests"} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Tabs value={tab} onValueChange={(v) => setParam("status", v)}>

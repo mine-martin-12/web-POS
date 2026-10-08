@@ -135,8 +135,8 @@ describe("demo mode in the real app", () => {
       fireEvent.click(screen.getByRole("radio", { name: /Staff/ }));
     });
     await waitFor(() => expect(document.querySelector('a[href="/app/staff"]')).toBeNull(), { timeout: 20_000 });
-    await openPage("/app/sales", /^Sales$/);
-    expect(await screen.findByText("The sales you recorded.", undefined, { timeout: 20_000 })).toBeInTheDocument();
+    // Staff see their own sales, titled as such.
+    await openPage("/app/sales", /^My sales$/);
     await openPage("/app/customers", /^Customers$/);
     await waitFor(() => expect(document.body.textContent).toMatch(/\+2547000\*\*\*\d\d/), { timeout: 20_000 });
     expect(document.body.textContent).not.toMatch(/\+254700000\d{3}/);

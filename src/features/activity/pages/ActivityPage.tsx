@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { PageHeader } from "@/components/common/PageHeader";
 import { useSearchParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -116,16 +117,17 @@ const ActivityPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Activity</h1>
-          <p className="text-muted-foreground">Every change in your business: who, what, when and why.</p>
-        </div>
-        <Button variant="outline" onClick={exportCsv} disabled={exporting || total === 0} className="w-full sm:w-auto">
-          <Download className="mr-2 h-4 w-4" />
-          {exporting ? "Exporting…" : "Export CSV"}
-        </Button>
-      </div>
+      <PageHeader
+        title="Activity"
+        actions={
+          <>
+            <Button variant="outline" onClick={exportCsv} disabled={exporting || total === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              {exporting ? "Exporting…" : "Export CSV"}
+            </Button>
+          </>
+        }
+      />
 
       <Card>
         <CardContent className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-6">

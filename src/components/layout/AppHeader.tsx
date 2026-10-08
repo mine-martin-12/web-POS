@@ -2,16 +2,15 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
-import { findPage, QUICK_ACTIONS } from "@/config/routes";
+import { QUICK_ACTIONS } from "@/config/routes";
 import { SHORTCUTS } from "@/lib/platform";
 import { cn } from "@/lib/utils";
-import { Breadcrumbs } from "./Breadcrumbs";
 
 const SCROLL_THRESHOLD_PX = 10;
 const newSale = QUICK_ACTIONS.find((a) => a.id === "new-sale")!;
+const SALES_PATH = newSale.to.split("?")[0];
 
 interface AppHeaderProps {
   onOpenPalette: () => void;
@@ -23,7 +22,6 @@ interface AppHeaderProps {
 export function AppHeader({ onOpenPalette, actions }: AppHeaderProps) {
   const { pathname } = useLocation();
   const [scrolled, setScrolled] = useState(false);
-  const page = findPage(pathname);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > SCROLL_THRESHOLD_PX);
@@ -41,10 +39,8 @@ export function AppHeader({ onOpenPalette, actions }: AppHeaderProps) {
           : "bg-card",
       )}
     >
+      {/* No breadcrumb trail: every page shows its own title in its header. */}
       <SidebarTrigger aria-label="Toggle sidebar" />
-      <Separator orientation="vertical" className="h-5" />
-      <Breadcrumbs className="hidden md:block" />
-      <span className="truncate font-semibold md:hidden">{page?.title}</span>
 
       <div className="ml-auto flex items-center gap-1">
         <Button
@@ -65,12 +61,15 @@ export function AppHeader({ onOpenPalette, actions }: AppHeaderProps) {
         </Button>
         {actions}
         <ThemeToggle />
-        <Button asChild size="sm" className="ml-1 hidden sm:inline-flex">
-          <Link to={newSale.to}>
-            <Plus className="h-4 w-4" aria-hidden />
-            {newSale.label}
-          </Link>
-        </Button>
+        {/* On Sales the page header already has this button. */}
+        {pathname !== SALES_PATH && (
+          <Button asChild size="sm" className="ml-1 hidden sm:inline-flex">
+            <Link to={newSale.to}>
+              <Plus className="h-4 w-4" aria-hidden />
+              {newSale.label}
+            </Link>
+          </Button>
+        )}
       </div>
     </header>
   );

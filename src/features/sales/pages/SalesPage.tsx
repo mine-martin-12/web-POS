@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/common/PageHeader";
 import { renderToStaticMarkup } from "react-dom/server";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -245,34 +246,33 @@ const SalesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Sales</h1>
-          <p className="text-muted-foreground">
-            {security.canViewAllSales ? "Every sale in your business." : "The sales you recorded."}
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button onClick={openNew} className="w-full sm:order-2 sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Record sale
-          </Button>
-          <ExportMenu
-            filename="sales"
-            title="Sales report"
-            subtitle={period.label}
-            disabled={!rows.length}
-            className="sm:order-1"
-            sheets={() => [sheet(rows)]}
-            summary={() => [
-              ["Sales", String(totals.count)],
-              ["Total billed", formatMoney(fromCents(totals.billed), business?.currency)],
-              ["Collected", formatMoney(fromCents(totals.collected), business?.currency)],
-              ["Outstanding", formatMoney(fromCents(totals.outstanding), business?.currency)],
-            ]}
-          />
-        </div>
-      </div>
+      <PageHeader
+        title={security.canViewAllSales ? "Sales" : "My sales"}
+        actions={
+          <>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={openNew} className="sm:order-2">
+                <Plus className="mr-2 h-4 w-4" />
+                Record sale
+              </Button>
+              <ExportMenu
+                filename="sales"
+                title="Sales report"
+                subtitle={period.label}
+                disabled={!rows.length}
+                className="sm:order-1"
+                sheets={() => [sheet(rows)]}
+                summary={() => [
+                  ["Sales", String(totals.count)],
+                  ["Total billed", formatMoney(fromCents(totals.billed), business?.currency)],
+                  ["Collected", formatMoney(fromCents(totals.collected), business?.currency)],
+                  ["Outstanding", formatMoney(fromCents(totals.outstanding), business?.currency)],
+                ]}
+              />
+            </div>
+          </>
+        }
+      />
 
       <MonthBrowser
         months={months.data}

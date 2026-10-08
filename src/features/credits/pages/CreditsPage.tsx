@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/common/PageHeader";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, HandCoins, MoreHorizontal, Pencil, Trash2, Wallet } from "lucide-react";
@@ -205,10 +206,7 @@ const CreditsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Credits</h1>
-        <p className="text-muted-foreground">Customers who owe you, and the payments they've made.</p>
-      </div>
+      <PageHeader title="Credits" />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Tile label="Outstanding" loading={credits.isLoading} icon={HandCoins}>

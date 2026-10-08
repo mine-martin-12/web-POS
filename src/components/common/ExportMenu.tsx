@@ -17,7 +17,6 @@ import { getErrorMessage } from "@/lib/errors";
 import { buildWorkbook, sheetToCsv } from "@/lib/exports/files";
 import { printOfficialDocument } from "@/lib/exports/pdf";
 import type { AnySheet, ExportMeta } from "@/lib/exports/table";
-import { cn } from "@/lib/utils";
 
 interface ExportMenuProps {
   /** e.g. "sales" → sales-2026-10-03.csv */
@@ -69,7 +68,7 @@ export function ExportMenu({ filename, title, subtitle, sheets, summary, disable
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" disabled={disabled || busy} className={cn("w-full sm:w-auto", className)}>
+        <Button variant="outline" disabled={disabled || busy} className={className}>
           <Download className="mr-2 h-4 w-4" />
           {busy ? "Exporting…" : "Export"}
           <ChevronDown className="ml-2 h-4 w-4 opacity-60" />

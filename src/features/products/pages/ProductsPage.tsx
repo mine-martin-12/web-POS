@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { PageHeader } from "@/components/common/PageHeader";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Archive, Download, MoreHorizontal, Package, PackagePlus, Pencil, Plus } from "lucide-react";
@@ -190,27 +191,28 @@ const ProductsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Products</h1>
-          <p className="text-muted-foreground">Your stock list and what it cost you.</p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button onClick={openNew} className="w-full sm:order-2 sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            <span className="sm:hidden">Add</span>
-            <span className="hidden sm:inline">Add product</span>
-          </Button>
-          <ExportMenu
-            filename="products"
-            title="Stock list"
-            subtitle={format(new Date(), "d MMM yyyy")}
-            disabled={!rows.length}
-            className="sm:order-1"
-            sheets={() => [sheet(rows)]}
-          />
-        </div>
-      </div>
+      <PageHeader
+        title="Products"
+        actions={
+          <>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={openNew} className="sm:order-2">
+                <Plus className="mr-2 h-4 w-4" />
+                <span className="sm:hidden">Add</span>
+                <span className="hidden sm:inline">Add product</span>
+              </Button>
+              <ExportMenu
+                filename="products"
+                title="Stock list"
+                subtitle={format(new Date(), "d MMM yyyy")}
+                disabled={!rows.length}
+                className="sm:order-1"
+                sheets={() => [sheet(rows)]}
+              />
+            </div>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Tile label="Products" loading={products.isLoading}>

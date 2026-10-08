@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { PageHeader } from "@/components/common/PageHeader";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { simulatedNote } from "@/data/mode";
@@ -100,17 +101,18 @@ const StaffPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Team</h1>
-          <p className="text-muted-foreground">Invite staff, set their roles and control who can sign in.</p>
-        </div>
-        <Button onClick={() => setInviteOpen(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          <span className="sm:hidden">Invite</span>
-          <span className="hidden sm:inline">Invite member</span>
-        </Button>
-      </div>
+      <PageHeader
+        title="Team"
+        actions={
+          <>
+            <Button onClick={() => setInviteOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              <span className="sm:hidden">Invite</span>
+              <span className="hidden sm:inline">Invite member</span>
+            </Button>
+          </>
+        }
+      />
 
       {openInvitations.length > 0 && (
         <Card>

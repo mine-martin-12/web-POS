@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { PageHeader } from "@/components/common/PageHeader";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Archive, MoreHorizontal, Pencil, Plus, Users } from "lucide-react";
@@ -91,17 +92,18 @@ const CustomersPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Customers</h1>
-          <p className="text-muted-foreground">People you sell to and give credit to.</p>
-        </div>
-        <Button onClick={() => setCreating(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          <span className="sm:hidden">Add</span>
-          <span className="hidden sm:inline">Add customer</span>
-        </Button>
-      </div>
+      <PageHeader
+        title="Customers"
+        actions={
+          <>
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              <span className="sm:hidden">Add</span>
+              <span className="hidden sm:inline">Add customer</span>
+            </Button>
+          </>
+        }
+      />
 
       <DataTable<Customer>
         rows={rows}
