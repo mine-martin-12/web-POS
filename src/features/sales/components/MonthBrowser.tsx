@@ -1,3 +1,4 @@
+import { FillRow } from "@/components/common/FillRow";
 import React, { useState } from "react";
 import { CalendarDays, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,7 @@ export function MonthBrowser({ months, loading, currentMonth, selectedMonth, onS
         {loading ? (
           <Skeleton className="h-6 w-56" />
         ) : (
-          <dl className="flex gap-6 text-sm">
+          <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
             <div>
               <dt className="text-muted-foreground">Sales</dt>
               <dd className="font-semibold tabular-nums">{current?.sales_count ?? 0}</dd>
@@ -80,9 +81,9 @@ export function MonthBrowser({ months, loading, currentMonth, selectedMonth, onS
             Archive ({archive.length} {archive.length === 1 ? "month" : "months"})
           </Button>
           {archiveOpen && (
-            <ul className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <FillRow as="ul" layout="lg-4" className="mt-2">
               {archive.map((m, i) => (
-                <li key={m.month} className="animate-fade-in" style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}>
+                <div key={m.month} className="animate-fade-in" style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}>
                   <button
                     type="button"
                     onClick={() => onSelect(m.month)}
@@ -101,9 +102,9 @@ export function MonthBrowser({ months, loading, currentMonth, selectedMonth, onS
                       {m.outstanding > 0 && <Money value={m.outstanding} className="text-xs text-destructive" />}
                     </div>
                   </button>
-                </li>
+                </div>
               ))}
-            </ul>
+            </FillRow>
           )}
         </div>
       )}

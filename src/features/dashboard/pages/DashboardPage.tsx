@@ -1,3 +1,4 @@
+import { FillRow } from "@/components/common/FillRow";
 import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
@@ -16,9 +17,9 @@ import { useExpenses } from "@/features/expenses/hooks";
 import { PaymentStatusBadge } from "@/features/sales/components/PaymentStatusBadge";
 import { PeriodPicker } from "@/features/sales/components/PeriodPicker";
 import { useMonthSummary, useSalesRange } from "@/features/sales/hooks";
-import { resolvePeriod } from "@/features/sales/period";
+import { comparisonPeriod, resolvePeriod } from "@/features/sales/period";
 import type { SaleRow } from "@/features/sales/types";
-import { addDaysToKey, DEFAULT_TIME_ZONE, dayKey, daysInclusive, eachDayKey, parseDayKey, todayKey } from "@/lib/dates";
+import { DEFAULT_TIME_ZONE, dayKey, eachDayKey, parseDayKey, todayKey } from "@/lib/dates";
 import { fromCents, pctChange, saleMoney, summarizeBy, summarizeSales, toCents } from "@/lib/finance";
 import { Greeting } from "../components/Greeting";
 import { InsightCard } from "../components/InsightCard";
@@ -38,9 +39,8 @@ const DashboardPage: React.FC = () => {
     { period: url.get("period", "30d"), month: url.get("month"), from: url.get("from"), to: url.get("to") },
     today,
   );
-  // The same number of days immediately before, for trends.
-  const days = daysInclusive(period.from, period.to);
-  const prev = { from: addDaysToKey(period.from, -days), to: addDaysToKey(period.from, -1) };
+  // A fair comparison: the same days of last month for a month in progress, and so on.
+  const prev = comparisonPeriod(period, today);
 
   const current = useSalesRange(period.from, period.to, timeZone);
   const previous = useSalesRange(prev.from, prev.to, timeZone);
@@ -54,7 +54,7 @@ const DashboardPage: React.FC = () => {
   const spent = sumExpenses(expenses.data);
   const spentBefore = sumExpenses(prevExpenses.data);
   const loading = current.isLoading || previous.isLoading;
-  const comparison = days === 1 ? "vs previous day" : `vs previous ${days} days`;
+  const comparison = prev.label;
 
   const daily = useMemo(() => {
     if (!current.data) return null;
@@ -110,7 +110,7 @@ const DashboardPage: React.FC = () => {
         />
       </div>
 
-      <section aria-label="Key figures" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <FillRow as="section" layout="xl-4" aria-label="Key figures">
         <InsightCard
           title="Revenue"
           help="Total billed for sales in this period, paid or not."
@@ -191,7 +191,7 @@ const DashboardPage: React.FC = () => {
             />
           </>
         )}
-      </section>
+      </FillRow>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">

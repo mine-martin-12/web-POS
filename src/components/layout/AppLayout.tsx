@@ -34,7 +34,8 @@ export function AppLayout() {
         Skip to content
       </a>
       <AppSidebar />
-      <SidebarInset>
+      {/* min-w-0: the page shrinks to the screen instead of growing to its widest line (no sideways scroll on phones). */}
+      <SidebarInset className="min-w-0">
         {DemoBanner && <DemoBanner />}
         <TrialBanner />
         <AppHeader onOpenPalette={() => setPaletteOpen(true)} actions={

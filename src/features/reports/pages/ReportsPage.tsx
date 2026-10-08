@@ -15,9 +15,9 @@ import { RevenueExpensesChart } from "@/features/dashboard/components/RevenueExp
 import { useExpenses } from "@/features/expenses/hooks";
 import { PeriodPicker } from "@/features/sales/components/PeriodPicker";
 import { useMonthSummary, useSalesRange } from "@/features/sales/hooks";
-import { resolvePeriod } from "@/features/sales/period";
+import { comparisonPeriod, resolvePeriod } from "@/features/sales/period";
 import { PAYMENT_METHOD_LABELS } from "@/features/sales/types";
-import { addDaysToKey, DEFAULT_TIME_ZONE, daysInclusive, todayKey } from "@/lib/dates";
+import { DEFAULT_TIME_ZONE, todayKey } from "@/lib/dates";
 import { creditOutstanding, marginPct, pctChange, summarizeBy, summarizeSales, toCents } from "@/lib/finance";
 import { FocusMode } from "../components/FocusMode";
 import { TaxExportDialog } from "../components/TaxExportDialog";
@@ -43,8 +43,8 @@ const ReportsPage: React.FC = () => {
   const [focused, setFocused] = useState(false);
   const [taxOpen, setTaxOpen] = useState(false);
 
-  const days = daysInclusive(period.from, period.to);
-  const prev = { from: addDaysToKey(period.from, -days), to: addDaysToKey(period.from, -1) };
+  // A fair comparison: the same days of last month for a month in progress, and so on.
+  const prev = comparisonPeriod(period, today);
   const sales = useSalesRange(period.from, period.to, timeZone);
   const prevSales = useSalesRange(prev.from, prev.to, timeZone);
   const expenses = useExpenses(period.from, period.to);
@@ -62,7 +62,7 @@ const ReportsPage: React.FC = () => {
   const margin = marginPct(net, now.billed);
   const marginBefore = marginPct(netBefore, before.billed);
   const loading = sales.isLoading || prevSales.isLoading || expenses.isLoading;
-  const comparison = `vs previous ${days === 1 ? "day" : `${days} days`}`;
+  const comparison = prev.label;
 
   const content = (value: TabValue) => {
     switch (value) {
